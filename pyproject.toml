@@ -1,0 +1,34 @@
+[project]
+name = "learning-platform-api"
+version = "0.1.0"
+requires-python = ">=3.14"
+dependencies = [
+    "alembic",
+    "asyncpg",
+    "bcrypt",
+    "fastapi[all]",
+    "fastapi-users[sqlalchemy]",
+    "password-strength",
+    "pre-commit",
+    "pydantic-settings",
+    "pytest",
+    "pytest-asyncio",
+    "pytest-xdist",
+    "python-jose[cryptography]",
+    "ruff",
+    "slowapi",
+    "sqlalchemy[asyncio]",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+addopts = ["-v", "--tb=short"]
+
+[tool.ruff]
+line-length = 120
+exclude = ["alembic/versions"]
+
+[tool.vercel.scripts]
+build = "uv run alembic upgrade head"
+
