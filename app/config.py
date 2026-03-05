@@ -20,7 +20,8 @@ class Settings(BaseSettings):
     sql_echo: bool = False
 
     # Auth: password hashed at runtime for login timing-attack mitigation when user is not found.
-    auth_dummy_password: str = ""
+    # Must be non-empty — an empty string hashes near-instantaneously and defeats the timing equalisation.
+    auth_dummy_password: str = "timing-equaliser-only"
 
     # FastAPI Users — generate each with: openssl rand -hex 32
     auth_reset_password_token_secret: str

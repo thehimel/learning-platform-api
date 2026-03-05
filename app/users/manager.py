@@ -47,6 +47,10 @@ class UserManager(UUIDIDMixin, BaseUserManager[User, uuid.UUID]):
         if hasattr(user, "email") and user.email and user.email.split("@")[0].lower() in password.lower():
             raise InvalidPasswordException(reason="Password must not contain your email address.")
 
+    async def on_after_update(self, user: User, update_dict: dict, request: Optional[Request] = None):
+        if "role" in update_dict:
+            logger.warning("Privilege change: user %s role set to '%s'.", user.id, user.role)
+
     async def on_after_register(self, user: User, request: Optional[Request] = None):
         logger.info("User %s registered with role '%s'.", user.id, user.role)
 
