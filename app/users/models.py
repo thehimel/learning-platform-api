@@ -3,7 +3,7 @@ import enum
 from fastapi_users.db import SQLAlchemyBaseUserTableUUID
 from sqlalchemy import Enum as SAEnum
 from sqlalchemy.ext.hybrid import hybrid_property
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import Base
 
@@ -47,3 +47,8 @@ class User(SQLAlchemyBaseUserTableUUID, Base):
     @classmethod
     def is_superuser(cls):  # type: ignore[override]
         return cls.role == UserRole.admin
+
+    # Course relationships (string references to avoid circular imports)
+    instructed_courses = relationship("CourseInstructor", back_populates="user")
+    course_ratings = relationship("CourseRating", back_populates="user")
+    course_enrollments = relationship("CourseEnrollment", back_populates="user")
