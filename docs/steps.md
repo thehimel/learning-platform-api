@@ -20,4 +20,10 @@ Setup guide: [sqlalchemy-alembic-async-setup.md](config/sqlalchemy-alembic-async
 
 ## Implement Authentication and Authorization
 
-- [feat: add user authentication, RBAC, and management endpoints](https://github.com/thehimel/learning-platform-api/commit/e5fca7e6fc8d38074ce705a5dfe55596b7156a40)
+- [feat: add user authentication, RBAC, and management endpoints](https://github.com/thehimel/learning-platform-api/commit/68826bc73c8783d1805fbdd5b7d76b6c5cecf6c2)
+- [feat: implement password strength validation in user management](https://github.com/thehimel/learning-platform-api/commit/53733a6fe34f6b321b7187392212a9134cc3123b)
+- [feat: remove is_superuser column from user model](https://github.com/thehimel/learning-platform-api/commit/ee3739e152e4159c499507037e253c44aeddb89d)
+- [feat: require email verification before allowing email self-update](https://github.com/thehimel/learning-platform-api/commit/d01d1cc04d62fc19dbc07d85d0f03526cb552162)
+- [feat: enhance authentication security and user management logging](https://github.com/thehimel/learning-platform-api/commit/4878909d09d6fb2b9bd303de15c564f02a9992d0)
+- [feat: implement rate limiting using SlowAPI middleware](https://github.com/thehimel/learning-platform-api/commit/50cfb622eda72b494cc49bd16bea6c9645f9d94c)
+- [refactor: update JWT access token expiration time to 1 day](https://github.com/thehimel/learning-platform-api/commit/14f22b7b32ba3fd2af1304d33ef9819f2fc915ff)
