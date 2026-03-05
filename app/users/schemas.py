@@ -69,7 +69,13 @@ class UserUpdate(schemas.BaseUserUpdate):
 class UserAdminUpdate(schemas.BaseUserUpdate):
     """
     All fields editable — used exclusively on PATCH /api/users/{id} (admin only).
-    BaseUserUpdate already provides: password, email, is_active, is_superuser, is_verified.
+    BaseUserUpdate provides: password, email, is_active, is_verified.
+
+    is_superuser is excluded — it no longer exists as a DB column and is derived
+    from role via a hybrid_property on the User model.
     """
 
+    model_config = ConfigDict(json_schema_extra=_make_schema_cleaner("is_superuser"))
+
     role: Optional[UserRole] = None
+    is_superuser: None = None  # type: ignore[assignment]
