@@ -123,10 +123,11 @@ docker push username/fastapi
 
 ## Alembic
 
-Run from the project root. See [Alembic Setup](steps/config/alembic-setup.md) for full guide.
+Run from the project root. See [Alembic Setup](config/sqlalchemy-alembic-async-setup.md) for full guide.
 
 | Alembic | Purpose | Django equivalent |
 |---------|---------|-------------------|
+| `alembic init alembic` | Initialize Alembic (creates `alembic/` and `alembic.ini`; `alembic` is the directory name) | — |
 | `alembic revision --autogenerate -m "message"` | Create migration from model changes | `python manage.py makemigrations` |
 | `alembic revision -m "message"` | Create manual migration (no autogenerate) | `python manage.py makemigrations` |
 | `alembic upgrade head` | Apply all pending migrations | `python manage.py migrate` |
@@ -219,4 +220,10 @@ pip install bcrypt
 
 # Install cryptography for JWT signing
 pip install python-jose[cryptography]
+
+# Install async PostgreSQL driver
+pip install asyncpg
+
+# Install SQLAlchemy with async support (includes greenlet)
+pip install "sqlalchemy[asyncio]"
 ```
