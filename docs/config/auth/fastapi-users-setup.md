@@ -217,6 +217,8 @@ async def get_user_manager(user_db: SQLAlchemyUserDatabase = Depends(get_user_db
 
 Create a dedicated `app/auth/` directory for the JWT backend and fastapi-users instance — mirroring the `app/auth/` pattern used for custom auth logic.
 
+> `app/auth/backend.py` also houses the RBAC dependency factory (`require_role`) and the ready-to-use role dependencies (`current_student`, `current_instructor`, `current_admin`). See [RBAC Setup](rbac-setup.md) for the full guide.
+
 ```python
 # app/auth/backend.py
 import uuid
@@ -331,20 +333,26 @@ app.include_router(api_router, prefix="/api", tags=["API"])
 
 ### Resulting endpoints
 
-| Method | Path |
-|---|---|
-| `POST` | `/api/auth/jwt/login` |
-| `POST` | `/api/auth/jwt/logout` |
-| `POST` | `/api/auth/register` |
-| `POST` | `/api/auth/forgot-password` |
-| `POST` | `/api/auth/reset-password` |
-| `POST` | `/api/auth/request-verify-token` |
-| `POST` | `/api/auth/verify` |
-| `GET` | `/api/users/me` |
-| `PATCH` | `/api/users/me` |
-| `GET` | `/api/users/{id}` |
-| `PATCH` | `/api/users/{id}` |
-| `DELETE` | `/api/users/{id}` |
+| Method | Path | Content-Type |
+|---|---|---|
+| `POST` | `/api/auth/jwt/login` | `application/x-www-form-urlencoded` |
+| `POST` | `/api/auth/jwt/logout` | — |
+| `POST` | `/api/auth/register` | `application/json` |
+| `POST` | `/api/auth/forgot-password` | `application/json` |
+| `POST` | `/api/auth/reset-password` | `application/json` |
+| `POST` | `/api/auth/request-verify-token` | `application/json` |
+| `POST` | `/api/auth/verify` | `application/json` |
+| `GET` | `/api/users/me` | — |
+| `PATCH` | `/api/users/me` | `application/json` |
+| `GET` | `/api/users/{id}` | — |
+| `PATCH` | `/api/users/{id}` | `application/json` |
+| `DELETE` | `/api/users/{id}` | — |
+
+> **Common mistake:** `POST /api/auth/jwt/login` uses `application/x-www-form-urlencoded` with field `username` (not `email`) — this is the OAuth2 spec requirement. All other endpoints use `application/json`.
+
+> **Self-deletion protection:** `DELETE /api/users/{id}` returns `403` if the requesting admin attempts to delete their own account.
+
+> **`PATCH /api/users/me` — allowed fields:** Only `password` is accepted. `email`, `role`, `is_active`, `is_superuser`, and `is_verified` are all stripped from the request and hidden from the OpenAPI schema. Email changes are blocked until email verification is enabled — see [Email Setup](email-setup.md). Role changes are admin-only via `PATCH /api/users/{id}`.
 
 ---
 
@@ -419,7 +427,7 @@ app/
 - [ ] Create `app/users/schemas.py` with `UserRead`, `UserCreate`, `UserUpdate`
 - [ ] Create `app/users/dependencies.py` with `get_user_db`
 - [ ] Create `app/users/manager.py` with `UserManager` and `get_user_manager`
-- [ ] Create `app/auth/backend.py` with `auth_backend`, `fastapi_users`, `current_active_user`
+- [ ] Create `app/auth/backend.py` with `auth_backend`, `fastapi_users`, `current_active_user`, and RBAC dependencies — see [RBAC Setup](rbac-setup.md)
 - [ ] Create `app/auth/router.py` with all auth routes
 - [ ] Create `app/users/router.py` with user management routes
 - [ ] Wire both routers into `app/api/router.py`
