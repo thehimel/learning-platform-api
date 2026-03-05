@@ -1,6 +1,7 @@
 alembic
 bcrypt
 fastapi[all]
+password-strength
 pre-commit
 pydantic-settings
 pytest
