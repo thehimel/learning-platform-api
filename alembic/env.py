@@ -1,4 +1,5 @@
 import asyncio
+import ssl
 import sys
 from pathlib import Path
 
@@ -16,6 +17,7 @@ from app.config import settings
 # Import all models here so their tables register with Base.metadata
 # and alembic autogenerate can detect schema changes.
 from app.courses import models as courses_models  # noqa: F401
+from app.users import models as users_models  # noqa: F401
 
 config = context.config
 
@@ -54,7 +56,13 @@ def do_run_migrations(connection) -> None:
 
 async def run_async_migrations() -> None:
     """Create an async engine and run migrations via run_sync."""
-    connectable = create_async_engine(config.get_main_option("sqlalchemy.url"))
+    connect_args = {}
+    if settings.postgres_ssl_require:
+        connect_args["ssl"] = ssl.create_default_context()
+    connectable = create_async_engine(
+        config.get_main_option("sqlalchemy.url"),
+        connect_args=connect_args,
+    )
     async with connectable.connect() as connection:
         await connection.run_sync(do_run_migrations)
     await connectable.dispose()
