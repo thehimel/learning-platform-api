@@ -1,0 +1,23 @@
+info:
+  name: course-rate
+  type: http
+  seq: 5
+
+http:
+  method: POST
+  url: "{{courses}}/1/rate"
+  body:
+    type: json
+    data: |-
+      {
+        "rating": 4
+      }
+  auth:
+    type: bearer
+    token: "{{student_access_token}}"
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

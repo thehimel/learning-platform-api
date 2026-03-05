@@ -1,0 +1,24 @@
+info:
+  name: courses-get
+  type: http
+  seq: 2
+
+http:
+  method: GET
+  url: "{{courses}}?published=true&q=string"
+  params:
+    - name: published
+      value: "true"
+      type: query
+    - name: q
+      value: string
+      type: query
+  auth:
+    type: bearer
+    token: ""
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

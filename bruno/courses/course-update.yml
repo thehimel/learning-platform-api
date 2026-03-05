@@ -1,0 +1,27 @@
+info:
+  name: course-update
+  type: http
+  seq: 4
+
+http:
+  method: PATCH
+  url: "{{courses}}/1"
+  body:
+    type: json
+    data: |-
+      {
+        "title": "Updated Title",
+        "published": false,
+        "instructor_ids": [
+          "{{instructor_user_id}}"
+        ]
+      }
+  auth:
+    type: bearer
+    token: "{{admin_access_token}}"
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
