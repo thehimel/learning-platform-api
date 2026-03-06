@@ -68,18 +68,44 @@ async def get_courses(
     session: AsyncSession,
     limit: int = 20,
     offset: int = 0,
+    current_user: User | None = None,
 ) -> tuple[list[Course], int]:
     """
-    Get courses with pagination. Returns only published courses.
+    Get courses with pagination.
+
+    Unauthenticated: published only.
+    Admin: all courses.
+    Instructor: published + unpublished courses where they are instructor.
+
     Returns (courses, total_count). ORM objects; CourseRead auto-transforms.
     """
-    base_stmt = (
-        select(Course)
-        .where(Course.published == True)
-        .options(*_COURSE_LOAD_OPTIONS)
-        .order_by(Course.created_at.desc(), Course.id.desc())
-    )
-    count_stmt = select(func.count()).select_from(Course).where(Course.published == True)
+    if current_user is not None and current_user.role == UserRole.admin:
+        base_stmt = (
+            select(Course)
+            .options(*_COURSE_LOAD_OPTIONS)
+            .order_by(Course.created_at.desc(), Course.id.desc())
+        )
+        count_stmt = select(func.count()).select_from(Course)
+    elif current_user is not None and current_user.role == UserRole.instructor:
+        instructor_course_ids = select(CourseInstructor.course_id).where(
+            CourseInstructor.user_id == current_user.id
+        )
+        where_clause = or_(Course.published, Course.id.in_(instructor_course_ids))
+        base_stmt = (
+            select(Course)
+            .where(where_clause)
+            .options(*_COURSE_LOAD_OPTIONS)
+            .order_by(Course.created_at.desc(), Course.id.desc())
+        )
+        count_stmt = select(func.count()).select_from(Course).where(where_clause)
+    else:
+        base_stmt = (
+            select(Course)
+            .where(Course.published)
+            .options(*_COURSE_LOAD_OPTIONS)
+            .order_by(Course.created_at.desc(), Course.id.desc())
+        )
+        count_stmt = select(func.count()).select_from(Course).where(Course.published)
     total_result = await session.execute(count_stmt)
     total = total_result.scalar_one()
 

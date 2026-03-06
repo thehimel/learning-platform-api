@@ -278,8 +278,13 @@ async def client_admin(db_session, test_admin):
     async def override_current_instructor():
         return test_admin
 
+    async def override_current_user_optional():
+        return test_admin
+
     app.dependency_overrides[get_db] = override_get_db  # type: ignore[attr-defined]
     app.dependency_overrides[current_admin] = override_current_admin  # type: ignore[attr-defined]
+    app.dependency_overrides[current_instructor] = override_current_instructor  # type: ignore[attr-defined]
+    app.dependency_overrides[current_user_optional] = override_current_user_optional  # type: ignore[attr-defined]
 
     async with httpx.AsyncClient(
         transport=httpx.ASGITransport(app=app),
@@ -314,6 +319,28 @@ async def client(db_session, test_instructor):
     app.dependency_overrides[get_db] = override_get_db  # type: ignore[attr-defined]
     app.dependency_overrides[current_active_user] = override_current_active_user  # type: ignore[attr-defined]
     app.dependency_overrides[current_instructor] = override_current_instructor  # type: ignore[attr-defined]
+    app.dependency_overrides[current_user_optional] = override_current_user_optional  # type: ignore[attr-defined]
+
+    async with httpx.AsyncClient(
+        transport=httpx.ASGITransport(app=app),
+        base_url=TEST_CLIENT_BASE_URL,
+    ) as http_client:
+        yield http_client
+
+    app.dependency_overrides.clear()  # type: ignore[attr-defined]
+
+
+@pytest.fixture
+async def client_unauthenticated(db_session):
+    """HTTP client with get_db and current_user_optional=None (unauthenticated view)."""
+
+    async def override_get_db():
+        yield db_session
+
+    async def override_current_user_optional():
+        return None
+
+    app.dependency_overrides[get_db] = override_get_db  # type: ignore[attr-defined]
     app.dependency_overrides[current_user_optional] = override_current_user_optional  # type: ignore[attr-defined]
 
     async with httpx.AsyncClient(
