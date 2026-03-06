@@ -3,6 +3,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.backend import current_instructor
+from app.courses.routes import RouteName
 from app.courses.error_codes import CourseErrorCode
 from app.courses.exceptions import InvalidInstructorIdsError
 from app.exceptions import error_detail
@@ -14,7 +15,7 @@ from app.users.models import User
 router = APIRouter()
 
 
-@router.post("/", response_model=CourseRead, status_code=status.HTTP_201_CREATED)
+@router.post("/", response_model=CourseRead, status_code=status.HTTP_201_CREATED, name=RouteName.courses_create)
 async def create_course(
     payload: CourseCreate,
     request: Request,

@@ -17,6 +17,7 @@ class Settings(BaseSettings):
     postgres_host: str = "localhost"
     postgres_port: str = "5432"
     postgres_db: str = "learning-platform"
+    postgres_db_test: str | None = None  # If unset, uses {postgres_db}_test
     sql_echo: bool = False
 
     # Auth: password hashed at runtime for login timing-attack mitigation when user is not found.

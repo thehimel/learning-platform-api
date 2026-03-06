@@ -5,6 +5,7 @@ password-strength
 pre-commit
 pydantic-settings
 pytest
+pytest-asyncio
 python-jose[cryptography]
 asyncpg
 fastapi-users[sqlalchemy]

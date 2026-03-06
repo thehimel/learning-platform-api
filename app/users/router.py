@@ -5,6 +5,7 @@ from fastapi_users.exceptions import UserNotExists
 
 from app.auth.backend import current_active_user, current_admin
 from app.exceptions import error_detail
+from app.users.routes import RouteName
 from app.users.error_codes import UserErrorCode
 from app.users.manager import UserManager, get_user_manager
 from app.users.models import User
@@ -16,12 +17,12 @@ router = APIRouter()
 admin_router = APIRouter(dependencies=[Depends(current_admin)])
 
 
-@router.get("/me", response_model=UserRead)
+@router.get("/me", response_model=UserRead, name=RouteName.users_get_me)
 async def get_me(user: User = Depends(current_active_user)):
     return user
 
 
-@router.patch("/me", response_model=UserRead)
+@router.patch("/me", response_model=UserRead, name=RouteName.users_update_me)
 async def update_me(
     user_update: UserUpdate,
     current_user: User = Depends(current_active_user),
@@ -30,7 +31,7 @@ async def update_me(
     return await user_manager.update(user_update, current_user, safe=True)
 
 
-@admin_router.get("/{id}", response_model=UserRead)
+@admin_router.get("/{id}", response_model=UserRead, name=RouteName.users_get_by_id)
 async def get_user(
     id: uuid.UUID,
     user_manager: UserManager = Depends(get_user_manager),
@@ -44,7 +45,7 @@ async def get_user(
         )
 
 
-@admin_router.patch("/{id}", response_model=UserRead)
+@admin_router.patch("/{id}", response_model=UserRead, name=RouteName.users_update_by_id)
 async def update_user(
     id: uuid.UUID,
     user_update: UserAdminUpdate,
@@ -60,7 +61,7 @@ async def update_user(
     return await user_manager.update(user_update, user, safe=False)
 
 
-@admin_router.delete("/{id}", status_code=status.HTTP_204_NO_CONTENT)
+@admin_router.delete("/{id}", status_code=status.HTTP_204_NO_CONTENT, name=RouteName.users_delete_by_id)
 async def delete_user(
     id: uuid.UUID,
     requesting_user: User = Depends(current_admin),

@@ -4,9 +4,11 @@ version = "0.1.0"
 requires-python = ">=3.14"
 
 [tool.pytest.ini_options]
-testpaths = ["tests"]
+testpaths = ["app/tests", "app/courses/tests", "app/users/tests"]
 pythonpath = ["."]
 addopts = ["-v", "--tb=short"]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
 
 [tool.ruff]
 line-length = 120

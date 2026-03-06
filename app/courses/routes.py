@@ -1,0 +1,7 @@
+"""Route names for courses endpoints — used by url_path_for and router."""
+
+from enum import StrEnum
+
+
+class RouteName(StrEnum):
+    courses_create = "courses_create"
