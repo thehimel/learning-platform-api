@@ -1,5 +1,5 @@
-from sqlalchemy import Boolean, CheckConstraint, Column, ForeignKey, Integer, Numeric, String, UniqueConstraint
-from sqlalchemy.orm import relationship
+from sqlalchemy import Boolean, CheckConstraint, Column, ForeignKey, Integer, Numeric, String, UniqueConstraint, func, select
+from sqlalchemy.orm import column_property, relationship
 from sqlalchemy.sql.expression import text
 from sqlalchemy.sql.sqltypes import TIMESTAMP
 from sqlalchemy.dialects.postgresql import UUID
@@ -84,3 +84,12 @@ class CourseEnrollment(Base):
 
     course = relationship("Course", back_populates="enrollments")
     user = relationship("User", back_populates="course_enrollments")
+
+
+# Add enrolled_count as computed column (avoids loading all enrollments)
+Course.enrolled_count = column_property(
+    select(func.count(CourseEnrollment.id))
+    .where(CourseEnrollment.course_id == Course.id)
+    .correlate(Course)
+    .scalar_subquery()
+)

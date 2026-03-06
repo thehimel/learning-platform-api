@@ -1,3 +1,4 @@
+import html
 import uuid
 from datetime import datetime
 from typing import Annotated, Any
@@ -5,6 +6,12 @@ from typing import Annotated, Any
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 MAX_INSTRUCTORS_PER_COURSE = 10
+MAX_DESCRIPTION_LENGTH = 5000
+
+
+def _escape_html(value: str | None) -> str | None:
+    """Escape HTML entities to mitigate XSS when content is rendered in HTML."""
+    return html.escape(value) if value is not None else None
 
 
 class CourseInstructorRead(BaseModel):
@@ -63,7 +70,7 @@ class CourseUpdate(BaseModel):
     """Schema for updating a course (partial — all fields optional)."""
 
     title: Annotated[str | None, Field(default=None, min_length=1, max_length=500)] = None
-    description: str | None = None
+    description: Annotated[str | None, Field(default=None, max_length=MAX_DESCRIPTION_LENGTH)] = None
     published: bool | None = None
     instructor_ids: list[uuid.UUID] | None = Field(
         default=None,
@@ -78,12 +85,21 @@ class CourseUpdate(BaseModel):
             data["instructor_ids"] = list(dict.fromkeys(data["instructor_ids"]))
         return data
 
+    @model_validator(mode="after")
+    def escape_html_fields(self) -> "CourseUpdate":
+        """Escape title and description for safe HTML rendering."""
+        if self.title is not None:
+            object.__setattr__(self, "title", _escape_html(self.title))
+        if self.description is not None:
+            object.__setattr__(self, "description", _escape_html(self.description))
+        return self
+
 
 class CourseCreate(BaseModel):
     """Schema for creating a course."""
 
     title: Annotated[str, Field(min_length=1, max_length=500)]
-    description: str | None = None
+    description: Annotated[str | None, Field(default=None, max_length=MAX_DESCRIPTION_LENGTH)] = None
     add_me_as_instructor: bool = Field(
         default=True,
         description="When true, the authenticated user is added as an instructor (primary if first).",
@@ -116,6 +132,14 @@ class CourseCreate(BaseModel):
                 data["instructor_ids"] = list(dict.fromkeys(ids))
         return data
 
+    @model_validator(mode="after")
+    def escape_html_fields(self) -> "CourseCreate":
+        """Escape title and description for safe HTML rendering."""
+        object.__setattr__(self, "title", _escape_html(self.title))
+        if self.description is not None:
+            object.__setattr__(self, "description", _escape_html(self.description))
+        return self
+
 
 class CourseRead(BaseModel):
     """Schema for course responses."""
@@ -135,11 +159,16 @@ class CourseRead(BaseModel):
     @model_validator(mode="before")
     @classmethod
     def from_course(cls, data: Any) -> Any:
-        """Auto-transform from Course ORM (with instructors and enrollments loaded)."""
-        if hasattr(data, "instructors") and hasattr(data, "enrollments"):
+        """Auto-transform from Course ORM (instructors loaded; enrolled_count from DB subquery)."""
+        if hasattr(data, "instructors"):
             sorted_instructors = sorted(
                 data.instructors,
                 key=lambda x: (not x.is_primary, x.id),
+            )
+            enrolled_count = (
+                data.enrolled_count
+                if hasattr(data, "enrolled_count")
+                else (len(data.enrollments) if hasattr(data, "enrollments") else 0)
             )
             return {
                 "id": data.id,
@@ -150,6 +179,6 @@ class CourseRead(BaseModel):
                 "created_at": data.created_at,
                 "updated_at": data.updated_at,
                 "instructors": sorted_instructors,
-                "enrolled_count": len(data.enrollments),
+                "enrolled_count": enrolled_count,
             }
         return data

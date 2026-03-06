@@ -15,6 +15,9 @@ import pytest
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.pool import NullPool
 
+# Run rate_course recompute inline in tests (avoids BackgroundTasks + pytest event loop issues)
+os.environ.setdefault("RATING_RECOMPUTE_ASYNC", "false")
+
 from app.auth.backend import current_active_user, current_admin, current_instructor
 from app.auth.routes import RouteName as AuthRouteName
 from app.courses.routes import RouteName as CourseRouteName

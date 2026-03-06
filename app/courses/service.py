@@ -18,17 +18,17 @@ from app.courses.errors import (
     TooManyInstructorsError,
 )
 from app.courses.models import Course, CourseEnrollment, CourseInstructor, CourseRating
+from app.database import AsyncSessionLocal
 from app.courses.schemas import CourseCreate, CourseRate, CourseUpdate, MAX_INSTRUCTORS_PER_COURSE
 from app.users.models import User, UserRole
 
-# Eager load options for Course → instructors → user, enrollments. Reused to avoid N+1.
+# Eager load options for Course → instructors → user. enrolled_count via column_property (no enrollments load).
 _COURSE_LOAD_OPTIONS = (
     selectinload(Course.instructors).selectinload(CourseInstructor.user),
-    selectinload(Course.enrollments),
 )
 
 
-async def get_course(course_id: int, session: AsyncSession) -> Course:
+async def get_course(id: int, session: AsyncSession) -> Course:
     """
     Fetch a single course by ID with instructors and enrolled count.
 
@@ -37,7 +37,7 @@ async def get_course(course_id: int, session: AsyncSession) -> Course:
     """
     stmt = (
         select(Course)
-        .where(Course.id == course_id)
+        .where(Course.id == id)
         .options(*_COURSE_LOAD_OPTIONS)
     )
     result = await session.execute(stmt)
@@ -100,7 +100,7 @@ async def create_course(
 
 
 async def update_course(
-    course_id: int,
+    id: int,
     payload: CourseUpdate,
     current_user: User,
     session: AsyncSession,
@@ -113,14 +113,14 @@ async def update_course(
         NotInstructorOfCourseError: if user is not instructor of course and not admin
         InvalidInstructorIdsError: if instructor_ids are invalid when provided
     """
-    if not await _course_exists(session, course_id):
+    if not await _course_exists(session, id):
         raise CourseNotFoundError()
 
     is_admin = current_user.role == UserRole.admin
     if not is_admin:
         stmt = select(
             exists().where(
-                CourseInstructor.course_id == course_id,
+                CourseInstructor.course_id == id,
                 CourseInstructor.user_id == current_user.id,
             )
         )
@@ -138,7 +138,7 @@ async def update_course(
         update_data["published"] = payload.published
 
     if update_data:
-        await session.execute(update(Course).where(Course.id == course_id).values(**update_data))
+        await session.execute(update(Course).where(Course.id == id).values(**update_data))
 
     if payload.instructor_ids is not None:
         if len(payload.instructor_ids) > MAX_INSTRUCTORS_PER_COURSE:
@@ -146,22 +146,22 @@ async def update_course(
         if len(payload.instructor_ids) == 0:
             raise CannotRemoveLastInstructorError()
         instructors = await _validate_instructors(session, payload.instructor_ids)
-        await session.execute(delete(CourseInstructor).where(CourseInstructor.course_id == course_id))
-        course_instructors = [
-            CourseInstructor(
-                course_id=course_id,
-                user_id=instructor.id,
-                is_primary=(index == 0),
+        await session.execute(delete(CourseInstructor).where(CourseInstructor.course_id == id))
+        if instructors:
+            await session.execute(
+                insert(CourseInstructor).values([
+                    {"course_id": id, "user_id": instructor.id, "is_primary": index == 0}
+                    for index, instructor in enumerate(instructors)
+                ])
             )
-            for index, instructor in enumerate(instructors)
-        ]
-        session.add_all(course_instructors)
 
-    await session.commit()
-
-    stmt = select(Course).where(Course.id == course_id).options(*_COURSE_LOAD_OPTIONS)
+    # Fetch updated course in same transaction (sees uncommitted changes).
+    # With expire_on_commit=False, we return this object without re-fetch after commit.
+    stmt = select(Course).where(Course.id == id).options(*_COURSE_LOAD_OPTIONS)
     result = await session.execute(stmt)
-    return result.scalars().unique().one()
+    course = result.scalars().unique().one()
+    await session.commit()
+    return course
 
 
 def _resolve_instructor_ids(payload: CourseCreate, current_user_id: UUID) -> list[UUID]:
@@ -195,14 +195,14 @@ async def _validate_instructors(
     return users
 
 
-async def _course_exists(session: AsyncSession, course_id: int) -> bool:
+async def _course_exists(session: AsyncSession, id: int) -> bool:
     """Check if course exists. Lighter than session.get(Course) — no ORM materialization."""
-    stmt = select(exists().where(Course.id == course_id))
+    stmt = select(exists().where(Course.id == id))
     result = await session.execute(stmt)
     return result.scalar_one()
 
 
-async def enroll_course(course_id: int, current_user: User, session: AsyncSession) -> CourseEnrollment:
+async def enroll_course(id: int, current_user: User, session: AsyncSession) -> CourseEnrollment:
     """
     Enroll current user in a course.
 
@@ -210,10 +210,10 @@ async def enroll_course(course_id: int, current_user: User, session: AsyncSessio
         CourseNotFoundError: if course does not exist
         AlreadyEnrolledError: if user is already enrolled
     """
-    if not await _course_exists(session, course_id):
+    if not await _course_exists(session, id):
         raise CourseNotFoundError()
 
-    enrollment = CourseEnrollment(course_id=course_id, user_id=current_user.id)
+    enrollment = CourseEnrollment(course_id=id, user_id=current_user.id)
     session.add(enrollment)
     try:
         await session.commit()
@@ -225,7 +225,7 @@ async def enroll_course(course_id: int, current_user: User, session: AsyncSessio
     return enrollment
 
 
-async def unenroll_course(course_id: int, current_user: User, session: AsyncSession) -> None:
+async def unenroll_course(id: int, current_user: User, session: AsyncSession) -> None:
     """
     Unenroll current user from a course.
 
@@ -233,11 +233,11 @@ async def unenroll_course(course_id: int, current_user: User, session: AsyncSess
         CourseNotFoundError: if course does not exist
         NotEnrolledError: if user is not enrolled
     """
-    if not await _course_exists(session, course_id):
+    if not await _course_exists(session, id):
         raise CourseNotFoundError()
 
     stmt = delete(CourseEnrollment).where(
-        CourseEnrollment.course_id == course_id,
+        CourseEnrollment.course_id == id,
         CourseEnrollment.user_id == current_user.id,
     )
     result = await session.execute(stmt)
@@ -247,7 +247,7 @@ async def unenroll_course(course_id: int, current_user: User, session: AsyncSess
 
 
 async def rate_course(
-    course_id: int,
+    id: int,
     payload: CourseRate,
     current_user: User,
     session: AsyncSession,
@@ -258,13 +258,13 @@ async def rate_course(
     Raises:
         CourseNotFoundError: if course does not exist
     """
-    if not await _course_exists(session, course_id):
+    if not await _course_exists(session, id):
         raise CourseNotFoundError()
 
     rating_value = Decimal(str(round(payload.rating, 1)))
     stmt = (
         insert(CourseRating)
-        .values(course_id=course_id, user_id=current_user.id, rating=rating_value)
+        .values(course_id=id, user_id=current_user.id, rating=rating_value)
         .on_conflict_do_update(
             constraint="uq_course_rating",
             set_={"rating": rating_value},
@@ -273,13 +273,29 @@ async def rate_course(
     )
     result = await session.execute(stmt)
     rating = result.scalars().one()
-
-    # Recompute course aggregate rating
-    avg_stmt = select(func.avg(CourseRating.rating)).where(CourseRating.course_id == course_id)
-    avg_result = await session.execute(avg_stmt)
-    avg_rating = avg_result.scalars().one_or_none()
-    await session.execute(
-        update(Course).where(Course.id == course_id).values(rating=avg_rating)
-    )
     await session.commit()
     return rating
+
+
+async def recompute_course_rating(course_id: int, session: AsyncSession | None = None) -> None:
+    """
+    Recompute and update course aggregate rating. When session is provided (e.g. in tests),
+    uses it; otherwise creates its own (for BackgroundTasks).
+    """
+    if session is not None:
+        avg_stmt = select(func.avg(CourseRating.rating)).where(CourseRating.course_id == course_id)
+        avg_result = await session.execute(avg_stmt)
+        avg_rating = avg_result.scalar_one_or_none()
+        await session.execute(
+            update(Course).where(Course.id == course_id).values(rating=avg_rating)
+        )
+        await session.commit()
+        return
+    async with AsyncSessionLocal() as session:
+        avg_stmt = select(func.avg(CourseRating.rating)).where(CourseRating.course_id == course_id)
+        avg_result = await session.execute(avg_stmt)
+        avg_rating = avg_result.scalar_one_or_none()
+        await session.execute(
+            update(Course).where(Course.id == course_id).values(rating=avg_rating)
+        )
+        await session.commit()

@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, BackgroundTasks, Depends
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -11,10 +11,12 @@ from app.courses.service import (
     enroll_course as enroll_course_service,
     get_course as get_course_service,
     get_courses as get_courses_service,
-    update_course as update_course_service,
     rate_course as rate_course_service,
+    recompute_course_rating,
+    update_course as update_course_service,
     unenroll_course as unenroll_course_service,
 )
+from app.config import settings
 from app.database import get_db
 from app.users.models import User
 
@@ -87,8 +89,14 @@ async def unenroll(
 async def rate(
     id: int,
     payload: CourseRate,
+    background_tasks: BackgroundTasks,
     current_user: User = Depends(current_active_user),
     session: AsyncSession = Depends(get_db),
 ) -> CourseRating:
     """Rate a course (1–5). Upserts if user already rated. Returns 201 with full rating resource."""
-    return await rate_course_service(id, payload, current_user, session)
+    rating = await rate_course_service(id, payload, current_user, session)
+    if settings.rating_recompute_async:
+        background_tasks.add_task(recompute_course_rating, id)
+    else:
+        await recompute_course_rating(id, session)
+    return rating

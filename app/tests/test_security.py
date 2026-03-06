@@ -176,7 +176,8 @@ class TestInputInjection:
         )
         assert response.status_code == 201
         data = response.json()
-        assert data["title"] == "'; DROP TABLE users; --"
+        # Title is HTML-escaped before storage; single quote becomes &#x27;
+        assert data["title"] == "&#x27;; DROP TABLE users; --"
 
     @pytest.mark.asyncio
     async def test_xss_payload_in_course_title_stored_safely(
@@ -197,4 +198,5 @@ class TestInputInjection:
         )
         assert response.status_code == 201
         data = response.json()
-        assert data["title"] == "<script>alert(1)</script>"
+        # Title is HTML-escaped before storage to mitigate XSS
+        assert data["title"] == "&lt;script&gt;alert(1)&lt;/script&gt;"

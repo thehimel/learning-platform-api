@@ -37,6 +37,9 @@ class Settings(BaseSettings):
     # CORS: "*" allows all origins (dev only); use comma-separated list for production.
     cors_origins: str = "*"
 
+    # When False, rate_course recomputes rating inline (for tests); when True, uses BackgroundTasks.
+    rating_recompute_async: bool = True
+
 
 try:
     settings = Settings()
