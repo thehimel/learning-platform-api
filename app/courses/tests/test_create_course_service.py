@@ -3,9 +3,10 @@
 import uuid
 
 import pytest
+from fastapi_users.password import PasswordHelper
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.courses.exceptions import InvalidInstructorIdsError
+from app.courses.errors import InvalidInstructorIdsError
 from app.courses.schemas import CourseCreate
 from app.courses.service import create_course
 from app.users.models import User, UserRole
@@ -14,8 +15,6 @@ from app.users.models import User, UserRole
 @pytest.fixture
 async def second_instructor(db_session: AsyncSession) -> User:
     """Create a second instructor for multi-instructor tests."""
-    from fastapi_users.password import PasswordHelper
-
     password_helper = PasswordHelper()
     user = User(
         id=uuid.uuid4(),

@@ -1,5 +1,7 @@
 """API integration tests for POST /api/courses/."""
 
+import uuid
+
 import pytest
 
 
@@ -63,8 +65,6 @@ class TestCreateCourseAPI:
         routes,
     ):
         """Invalid or non-instructor user IDs return 400 with structured error."""
-        import uuid
-
         payload = {
             "title": "Test Course",
             "add_me_as_instructor": False,

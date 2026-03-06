@@ -1,12 +1,11 @@
 import uuid
 
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends
 from fastapi_users import FastAPIUsers, models
 from fastapi_users.authentication import AuthenticationBackend, BearerTransport, JWTStrategy
 
-from app.auth.error_codes import AuthErrorCode
+from app.auth.errors import InsufficientPermissionsError
 from app.config import settings
-from app.exceptions import error_detail
 from app.users.manager import get_user_manager
 from app.users.models import User, UserRole
 
@@ -40,10 +39,7 @@ def require_role(*roles: UserRole):
 
     async def checker(user: User = Depends(current_active_user)) -> User:
         if user.role not in roles:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail=error_detail(AuthErrorCode.insufficient_permissions, "Insufficient permissions."),
-            )
+            raise InsufficientPermissionsError()
         return user
 
     return checker

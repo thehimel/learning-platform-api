@@ -1,20 +1,9 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.backend import current_active_user, current_instructor
 from app.courses.routes import RouteName
-from app.courses.error_codes import CourseErrorCode
-from app.courses.exceptions import (
-    AlreadyEnrolledError,
-    CannotRemoveLastInstructorError,
-    CourseNotFoundError,
-    InvalidInstructorIdsError,
-    NotEnrolledError,
-    NotInstructorOfCourseError,
-    TooManyInstructorsError,
-)
-from app.exceptions import error_detail
 from app.courses.models import Course, CourseEnrollment, CourseRating
 from app.courses.schemas import CourseCreate, CourseRead, CourseRate, CourseUpdate, EnrollmentRead, RatingRead
 from app.courses.service import (
@@ -44,13 +33,7 @@ async def get_course(
     session: AsyncSession = Depends(get_db),
 ) -> Course:
     """Fetch a single course by ID for detail pages. Public endpoint."""
-    try:
-        return await get_course_service(id, session)
-    except CourseNotFoundError:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=error_detail(CourseErrorCode.course_not_found, "Course not found."),
-        )
+    return await get_course_service(id, session)
 
 
 @router.patch("/{id}", response_model=CourseRead, name=RouteName.courses_update)
@@ -61,43 +44,10 @@ async def update_course(
     session: AsyncSession = Depends(get_db),
 ) -> Course:
     """Update course (title, description, published, instructors). Must be instructor of course or admin."""
-    try:
-        return await update_course_service(id, payload, current_user, session)
-    except CourseNotFoundError:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=error_detail(CourseErrorCode.course_not_found, "Course not found."),
-        )
-    except NotInstructorOfCourseError:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail=error_detail(CourseErrorCode.not_instructor_of_course, "Not an instructor of this course."),
-        )
-    except InvalidInstructorIdsError as e:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=error_detail(
-                CourseErrorCode.invalid_instructor_ids,
-                str(e),
-                missing_ids=[str(missing_id) for missing_id in e.missing_ids],
-            ),
-        )
-    except TooManyInstructorsError:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=error_detail(CourseErrorCode.too_many_instructors, "Too many instructors for this course."),
-        )
-    except CannotRemoveLastInstructorError:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=error_detail(
-                CourseErrorCode.cannot_remove_last_instructor,
-                "Cannot remove the last instructor. At least one instructor required.",
-            ),
-        )
+    return await update_course_service(id, payload, current_user, session)
 
 
-@router.post("/", response_model=CourseRead, status_code=status.HTTP_201_CREATED, name=RouteName.courses_create)
+@router.post("/", response_model=CourseRead, status_code=201, name=RouteName.courses_create)
 async def create_course(
     payload: CourseCreate,
     current_user: User = Depends(current_instructor),
@@ -110,63 +60,30 @@ async def create_course(
     to add others. At least one instructor required. All instructor_ids must
     be valid users with role instructor or admin.
     """
-    try:
-        return await create_course_service(payload, current_user, session)
-
-    except InvalidInstructorIdsError as e:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=error_detail(
-                CourseErrorCode.invalid_instructor_ids,
-                str(e),
-                missing_ids=[str(missing_id) for missing_id in e.missing_ids],
-            ),
-        )
+    return await create_course_service(payload, current_user, session)
 
 
-@router.post("/{id}/enroll", response_model=EnrollmentRead, status_code=status.HTTP_201_CREATED, name=RouteName.courses_enroll)
+@router.post("/{id}/enroll", response_model=EnrollmentRead, status_code=201, name=RouteName.courses_enroll)
 async def enroll(
     id: int,
     current_user: User = Depends(current_active_user),
     session: AsyncSession = Depends(get_db),
 ) -> CourseEnrollment:
     """Enroll current user in a course. Returns 201 with full enrollment resource."""
-    try:
-        return await enroll_course_service(id, current_user, session)
-    except CourseNotFoundError:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=error_detail(CourseErrorCode.course_not_found, "Course not found."),
-        )
-    except AlreadyEnrolledError:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail=error_detail(CourseErrorCode.already_enrolled, "Already enrolled in this course."),
-        )
+    return await enroll_course_service(id, current_user, session)
 
 
-@router.delete("/{id}/enroll", status_code=status.HTTP_204_NO_CONTENT, name=RouteName.courses_unenroll)
+@router.delete("/{id}/enroll", status_code=204, name=RouteName.courses_unenroll)
 async def unenroll(
     id: int,
     current_user: User = Depends(current_active_user),
     session: AsyncSession = Depends(get_db),
 ) -> None:
     """Unenroll current user from a course. Requires authentication."""
-    try:
-        await unenroll_course_service(id, current_user, session)
-    except CourseNotFoundError:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=error_detail(CourseErrorCode.course_not_found, "Course not found."),
-        )
-    except NotEnrolledError:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail=error_detail(CourseErrorCode.not_enrolled, "Not enrolled in this course."),
-        )
+    await unenroll_course_service(id, current_user, session)
 
 
-@router.post("/{id}/rate", response_model=RatingRead, status_code=status.HTTP_201_CREATED, name=RouteName.courses_rate)
+@router.post("/{id}/rate", response_model=RatingRead, status_code=201, name=RouteName.courses_rate)
 async def rate(
     id: int,
     payload: CourseRate,
@@ -174,10 +91,4 @@ async def rate(
     session: AsyncSession = Depends(get_db),
 ) -> CourseRating:
     """Rate a course (1–5). Upserts if user already rated. Returns 201 with full rating resource."""
-    try:
-        return await rate_course_service(id, payload, current_user, session)
-    except CourseNotFoundError:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=error_detail(CourseErrorCode.course_not_found, "Course not found."),
-        )
+    return await rate_course_service(id, payload, current_user, session)

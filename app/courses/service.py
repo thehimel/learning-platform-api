@@ -8,7 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 from sqlalchemy.dialects.postgresql import insert
 
-from app.courses.exceptions import (
+from app.courses.errors import (
     AlreadyEnrolledError,
     CannotRemoveLastInstructorError,
     CourseNotFoundError,
@@ -113,14 +113,21 @@ async def update_course(
         NotInstructorOfCourseError: if user is not instructor of course and not admin
         InvalidInstructorIdsError: if instructor_ids are invalid when provided
     """
-    course = await get_course(course_id, session)
+    if not await _course_exists(session, course_id):
+        raise CourseNotFoundError()
 
     is_admin = current_user.role == UserRole.admin
-    is_instructor_of_course = any(
-        ci.user_id == current_user.id for ci in course.instructors
-    )
-    if not is_admin and not is_instructor_of_course:
-        raise NotInstructorOfCourseError()
+    if not is_admin:
+        stmt = select(
+            exists().where(
+                CourseInstructor.course_id == course_id,
+                CourseInstructor.user_id == current_user.id,
+            )
+        )
+        result = await session.execute(stmt)
+        is_instructor_of_course = result.scalar_one()
+        if not is_instructor_of_course:
+            raise NotInstructorOfCourseError()
 
     update_data: dict = {}
     if payload.title is not None:

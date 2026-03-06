@@ -2,9 +2,9 @@
 
 import pytest
 
-from app.courses.error_codes import CourseErrorCode
+from app.courses.errors import CourseErrorCode
 from app.exceptions import error_detail
-from app.users.error_codes import UserErrorCode
+from app.users.errors import UserErrorCode
 
 
 class TestErrorDetail:
