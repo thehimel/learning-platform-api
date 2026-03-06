@@ -26,9 +26,22 @@ Align naming across modules (e.g. `UserRead`, `CourseRead`).
 ## REST
 
 - `POST` for create returns `201 Created`
-- Set `Location` header on create: `{base_path}/{resource_id}` (derive from `request.url.path`, no hardcoded paths)
+- `DELETE` for removal returns `204 No Content` when there is no response body
 - Use `response_model` on all endpoints
 - Collection create path: `"/"` (not `""`)
+
+### Resource Creation
+
+- Return `201 Created` with the **full created resource** in the response body (not `204 No Content`)
+- Do not set `Location` header — avoids maintenance burden when resource paths or authorization change
+- Define a `[Resource]Read` schema for the created resource (e.g. `EnrollmentRead`, `CourseRead`)
+- Service returns the ORM object; FastAPI serializes via `response_model`
+- Example: `POST /courses/{id}/enroll` → `201` with `{"id": 42, "course_id": 5, "user_id": "...", "enrolled_at": "..."}`
+
+### Resource Deletion
+
+- Use `DELETE` for removal (e.g. unenroll, remove membership)
+- Return `204 No Content` when there is no response body
 
 ## Authentication
 
