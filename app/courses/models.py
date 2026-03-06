@@ -1,4 +1,4 @@
-from sqlalchemy import Boolean, Column, ForeignKey, Integer, Numeric, String, UniqueConstraint
+from sqlalchemy import Boolean, CheckConstraint, Column, ForeignKey, Integer, Numeric, String, UniqueConstraint
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql.expression import text
 from sqlalchemy.sql.sqltypes import TIMESTAMP
@@ -14,9 +14,13 @@ class Course(Base):
     title = Column(String, nullable=False)
     description = Column(String, nullable=True)
     published = Column(Boolean, server_default="FALSE", nullable=False)
-    rating = Column(Numeric(3, 2), nullable=True)
+    rating = Column(Numeric(3, 1), nullable=True)
     created_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=text("now()"))
     updated_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=text("now()"), onupdate=text("now()"))
+
+    __table_args__ = (
+        CheckConstraint("rating IS NULL OR (rating >= 1 AND rating <= 5)", name="ck_courses_rating_range"),
+    )
 
     instructors = relationship(
         "CourseInstructor",
@@ -56,10 +60,13 @@ class CourseRating(Base):
     id = Column(Integer, primary_key=True, nullable=False)
     course_id = Column(Integer, ForeignKey("courses.id", ondelete="CASCADE"), nullable=False, index=True)
     user_id = Column(UUID(as_uuid=True), ForeignKey("user.id", ondelete="CASCADE"), nullable=False, index=True)
-    rating = Column(Numeric(3, 2), nullable=False)
+    rating = Column(Numeric(3, 1), nullable=False)
     created_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=text("now()"))
 
-    __table_args__ = (UniqueConstraint("course_id", "user_id", name="uq_course_rating"),)
+    __table_args__ = (
+        UniqueConstraint("course_id", "user_id", name="uq_course_rating"),
+        CheckConstraint("rating >= 1 AND rating <= 5", name="ck_course_rating_range"),
+    )
 
     course = relationship("Course", back_populates="ratings")
     user = relationship("User", back_populates="course_ratings")
