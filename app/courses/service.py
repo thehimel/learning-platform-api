@@ -2,7 +2,7 @@ from uuid import UUID
 
 from decimal import Decimal
 
-from sqlalchemy import delete, exists, func, or_, select, update
+from sqlalchemy import and_, delete, exists, func, or_, select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -69,43 +69,49 @@ async def get_courses(
     limit: int = 20,
     offset: int = 0,
     current_user: User | None = None,
+    published: bool | None = None,
+    q: str | None = None,
 ) -> tuple[list[Course], int]:
     """
-    Get courses with pagination.
+    Get courses with pagination and optional filters.
 
     Unauthenticated: published only.
     Admin: all courses.
     Instructor: published + unpublished courses where they are instructor.
 
+    Filters (optional):
+    - published: when True/False, filter by published status
+    - q: case-insensitive partial match on title
+
     Returns (courses, total_count). ORM objects; CourseRead auto-transforms.
     """
+    conditions = []
     if current_user is not None and current_user.role == UserRole.admin:
-        base_stmt = (
-            select(Course)
-            .options(*_COURSE_LOAD_OPTIONS)
-            .order_by(Course.created_at.desc(), Course.id.desc())
-        )
-        count_stmt = select(func.count()).select_from(Course)
+        pass
     elif current_user is not None and current_user.role == UserRole.instructor:
         instructor_course_ids = select(CourseInstructor.course_id).where(
             CourseInstructor.user_id == current_user.id
         )
-        where_clause = or_(Course.published, Course.id.in_(instructor_course_ids))
-        base_stmt = (
-            select(Course)
-            .where(where_clause)
-            .options(*_COURSE_LOAD_OPTIONS)
-            .order_by(Course.created_at.desc(), Course.id.desc())
-        )
-        count_stmt = select(func.count()).select_from(Course).where(where_clause)
+        conditions.append(or_(Course.published, Course.id.in_(instructor_course_ids)))
     else:
-        base_stmt = (
-            select(Course)
-            .where(Course.published)
-            .options(*_COURSE_LOAD_OPTIONS)
-            .order_by(Course.created_at.desc(), Course.id.desc())
-        )
-        count_stmt = select(func.count()).select_from(Course).where(Course.published)
+        conditions.append(Course.published)
+
+    if published is not None:
+        conditions.append(Course.published == published)
+    if q is not None and q.strip():
+        conditions.append(Course.title.ilike(f"%{q.strip()}%"))
+
+    base_stmt = (
+        select(Course)
+        .options(*_COURSE_LOAD_OPTIONS)
+        .order_by(Course.created_at.desc(), Course.id.desc())
+    )
+    count_stmt = select(func.count()).select_from(Course)
+    if conditions:
+        where_clause = and_(*conditions)
+        base_stmt = base_stmt.where(where_clause)
+        count_stmt = count_stmt.where(where_clause)
+
     total_result = await session.execute(count_stmt)
     total = total_result.scalar_one()
 

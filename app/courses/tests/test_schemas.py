@@ -91,6 +91,17 @@ class TestCourseCreate:
             errors = exc_info.value.errors()
             assert any(error_substring in str(e.get("msg", "")) for e in errors)
 
+    def test_escape_html_on_title_and_description(self):
+        """Title and description are HTML-escaped for XSS mitigation."""
+        payload = CourseCreate.model_validate({
+            "title": "Test & <b>bold</b>",
+            "description": "A & B",
+            "add_me_as_instructor": True,
+            "instructor_ids": [],
+        })
+        assert payload.title == "Test &amp; &lt;b&gt;bold&lt;/b&gt;"
+        assert payload.description == "A &amp; B"
+
 
 class TestCourseUpdate:
     """Tests for CourseUpdate schema validation."""
@@ -109,3 +120,12 @@ class TestCourseUpdate:
             CourseUpdate.model_validate({"title": "OK", "rating": 5})
         errors = exc_info.value.errors()
         assert any("extra" in str(e.get("type", "")).lower() for e in errors)
+
+    def test_escape_html_on_title_and_description(self):
+        """Title and description are HTML-escaped for XSS mitigation."""
+        payload = CourseUpdate.model_validate({
+            "title": "<script>alert(1)</script>",
+            "description": "A & B < C",
+        })
+        assert payload.title == "&lt;script&gt;alert(1)&lt;/script&gt;"
+        assert payload.description == "A &amp; B &lt; C"

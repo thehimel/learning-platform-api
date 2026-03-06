@@ -222,3 +222,67 @@ class TestGetCoursesAPI:
         assert data3["total"] == 5
         assert data3["items"][0]["title"] == "Course 2"
         assert data3["items"][1]["title"] == "Course 1"
+
+    @pytest.mark.asyncio
+    async def test_get_courses_filter_by_published(
+        self,
+        client_admin,
+        routes,
+    ):
+        """GET /courses?published= filters by published status."""
+        for title, published in [("Pub", True), ("Unpub", False)]:
+            payload = {
+                "title": title,
+                "add_me_as_instructor": True,
+                "instructor_ids": [],
+                "published": published,
+            }
+            await client_admin.post(routes.courses_create, json=payload)
+
+        resp_all = await client_admin.get(routes.courses_get)
+        assert resp_all.status_code == 200
+        assert resp_all.json()["total"] == 2
+
+        resp_pub = await client_admin.get(f"{routes.courses_get}?published=true")
+        assert resp_pub.status_code == 200
+        data = resp_pub.json()
+        assert data["total"] == 1
+        assert data["items"][0]["title"] == "Pub"
+
+        resp_unpub = await client_admin.get(f"{routes.courses_get}?published=false")
+        assert resp_unpub.status_code == 200
+        data = resp_unpub.json()
+        assert data["total"] == 1
+        assert data["items"][0]["title"] == "Unpub"
+
+    @pytest.mark.asyncio
+    async def test_get_courses_filter_by_title_search(
+        self,
+        client,
+        routes,
+    ):
+        """GET /courses?q= filters by case-insensitive partial match on title."""
+        for title in ["Python Basics", "Advanced Python", "JavaScript 101"]:
+            payload = {
+                "title": title,
+                "add_me_as_instructor": True,
+                "instructor_ids": [],
+                "published": True,
+            }
+            await client.post(routes.courses_create, json=payload)
+
+        resp = await client.get(f"{routes.courses_get}?q=python")
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["total"] == 2
+        titles = {c["title"] for c in data["items"]}
+        assert titles == {"Python Basics", "Advanced Python"}
+
+        resp_js = await client.get(f"{routes.courses_get}?q=javascript")
+        assert resp_js.status_code == 200
+        assert resp_js.json()["total"] == 1
+        assert resp_js.json()["items"][0]["title"] == "JavaScript 101"
+
+        resp_none = await client.get(f"{routes.courses_get}?q=nonexistent")
+        assert resp_none.status_code == 200
+        assert resp_none.json()["total"] == 0

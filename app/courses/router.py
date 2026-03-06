@@ -38,11 +38,13 @@ router = APIRouter()
 async def get_courses(
     limit: int = DEFAULT_PAGE_SIZE,
     offset: int = 0,
+    published: bool | None = None,
+    q: str | None = None,
     current_user: User | None = Depends(current_user_optional),
     session: AsyncSession = Depends(get_db),
 ) -> CourseListResponse:
     """
-    Get courses with pagination.
+    Get courses with pagination and optional filters.
 
     Unauthenticated: published only.
     Admin: all courses.
@@ -50,11 +52,18 @@ async def get_courses(
 
     - **limit**: Max items per page (default 20, max 100).
     - **offset**: Number of items to skip.
+    - **published**: Filter by published status (true/false).
+    - **q**: Case-insensitive partial match on title.
     """
     limit = min(max(1, limit), MAX_PAGE_SIZE)
     offset = max(0, offset)
     courses, total = await get_courses_service(
-        session, limit=limit, offset=offset, current_user=current_user
+        session,
+        limit=limit,
+        offset=offset,
+        current_user=current_user,
+        published=published,
+        q=q,
     )
     return CourseListResponse(items=courses, total=total, limit=limit, offset=offset)
 

@@ -215,6 +215,109 @@ class TestE2EInstructorFlow:
         course2 = next(c for c in list_resp2.json()["items"] if c["id"] == course_id)
         assert course2["rating"] == 5.0
 
+    @pytest.mark.asyncio
+    async def test_get_courses_filter_by_title_and_published(
+        self, client_e2e, instructor_e2e, admin_e2e, routes
+    ):
+        """E2E: Instructor creates courses; admin filters by q and published."""
+        _, instructor_token = instructor_e2e
+        _, admin_token = admin_e2e
+
+        for title, published in [
+            ("Python Intro", True),
+            ("Python Advanced", True),
+            ("Python Draft", False),
+            ("JavaScript Basics", True),
+        ]:
+            resp = await client_e2e.post(
+                routes.courses_create,
+                json={
+                    "title": title,
+                    "add_me_as_instructor": True,
+                    "instructor_ids": [],
+                    "published": published,
+                },
+                headers=_auth_headers(instructor_token),
+            )
+            assert resp.status_code == 201
+
+        resp = await client_e2e.get(
+            f"{routes.courses_get}?q=python",
+            headers=_auth_headers(admin_token),
+        )
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["total"] == 3
+        titles = {c["title"] for c in data["items"]}
+        assert titles == {"Python Intro", "Python Advanced", "Python Draft"}
+
+        resp_pub = await client_e2e.get(
+            f"{routes.courses_get}?q=python&published=true",
+            headers=_auth_headers(admin_token),
+        )
+        assert resp_pub.status_code == 200
+        assert resp_pub.json()["total"] == 2
+        titles_pub = {c["title"] for c in resp_pub.json()["items"]}
+        assert titles_pub == {"Python Intro", "Python Advanced"}
+
+    @pytest.mark.asyncio
+    async def test_admin_delete_course_e2e(self, client_e2e, instructor_e2e, admin_e2e, routes):
+        """E2E: Admin deletes a course created by instructor."""
+        _, instructor_token = instructor_e2e
+        _, admin_token = admin_e2e
+
+        create_resp = await client_e2e.post(
+            routes.courses_create,
+            json={
+                "title": "To Delete By Admin",
+                "add_me_as_instructor": True,
+                "instructor_ids": [],
+                "published": True,
+            },
+            headers=_auth_headers(instructor_token),
+        )
+        assert create_resp.status_code == 201
+        course_id = create_resp.json()["id"]
+
+        delete_resp = await client_e2e.delete(
+            routes.courses_delete(course_id),
+            headers=_auth_headers(admin_token),
+        )
+        assert delete_resp.status_code == 204
+
+        get_resp = await client_e2e.get(
+            routes.courses_get_by_id(course_id),
+            headers=_auth_headers(admin_token),
+        )
+        assert get_resp.status_code == 404
+
+    @pytest.mark.asyncio
+    async def test_instructor_delete_own_course_e2e(self, client_e2e, instructor_e2e, routes):
+        """E2E: Instructor deletes their own course."""
+        _, token = instructor_e2e
+
+        create_resp = await client_e2e.post(
+            routes.courses_create,
+            json={
+                "title": "Instructor Deletes Own",
+                "add_me_as_instructor": True,
+                "instructor_ids": [],
+                "published": False,
+            },
+            headers=_auth_headers(token),
+        )
+        assert create_resp.status_code == 201
+        course_id = create_resp.json()["id"]
+
+        delete_resp = await client_e2e.delete(
+            routes.courses_delete(course_id),
+            headers=_auth_headers(token),
+        )
+        assert delete_resp.status_code == 204
+
+        get_resp = await client_e2e.get(routes.courses_get_by_id(course_id))
+        assert get_resp.status_code == 404
+
 
 class TestE2EAdminFlow:
     """E2E: admin (created in DB) -> login -> manage users."""
