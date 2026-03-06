@@ -10,12 +10,15 @@ from sqlalchemy.dialects.postgresql import insert
 
 from app.courses.exceptions import (
     AlreadyEnrolledError,
+    CannotRemoveLastInstructorError,
     CourseNotFoundError,
     InvalidInstructorIdsError,
     NotEnrolledError,
+    NotInstructorOfCourseError,
+    TooManyInstructorsError,
 )
 from app.courses.models import Course, CourseEnrollment, CourseInstructor, CourseRating
-from app.courses.schemas import CourseCreate, CourseRate
+from app.courses.schemas import CourseCreate, CourseRate, CourseUpdate, MAX_INSTRUCTORS_PER_COURSE
 from app.users.models import User, UserRole
 
 # Eager load options for Course → instructors → user, enrollments. Reused to avoid N+1.
@@ -25,8 +28,27 @@ _COURSE_LOAD_OPTIONS = (
 )
 
 
-async def list_courses(session: AsyncSession) -> list[Course]:
-    """List all courses with instructors and enrolled count. Returns ORM objects; CourseRead auto-transforms."""
+async def get_course(course_id: int, session: AsyncSession) -> Course:
+    """
+    Fetch a single course by ID with instructors and enrolled count.
+
+    Raises:
+        CourseNotFoundError: if course does not exist
+    """
+    stmt = (
+        select(Course)
+        .where(Course.id == course_id)
+        .options(*_COURSE_LOAD_OPTIONS)
+    )
+    result = await session.execute(stmt)
+    course = result.scalars().unique().one_or_none()
+    if course is None:
+        raise CourseNotFoundError()
+    return course
+
+
+async def get_courses(session: AsyncSession) -> list[Course]:
+    """Get all courses with instructors and enrolled count. Returns ORM objects; CourseRead auto-transforms."""
     stmt = (
         select(Course)
         .options(*_COURSE_LOAD_OPTIONS)
@@ -75,6 +97,64 @@ async def create_course(
     stmt = select(Course).where(Course.id == course.id).options(*_COURSE_LOAD_OPTIONS)
     result = await session.execute(stmt)
     return result.scalars().one()
+
+
+async def update_course(
+    course_id: int,
+    payload: CourseUpdate,
+    current_user: User,
+    session: AsyncSession,
+) -> Course:
+    """
+    Update a course. User must be instructor of the course or admin.
+
+    Raises:
+        CourseNotFoundError: if course does not exist
+        NotInstructorOfCourseError: if user is not instructor of course and not admin
+        InvalidInstructorIdsError: if instructor_ids are invalid when provided
+    """
+    course = await get_course(course_id, session)
+
+    is_admin = current_user.role == UserRole.admin
+    is_instructor_of_course = any(
+        ci.user_id == current_user.id for ci in course.instructors
+    )
+    if not is_admin and not is_instructor_of_course:
+        raise NotInstructorOfCourseError()
+
+    update_data: dict = {}
+    if payload.title is not None:
+        update_data["title"] = payload.title
+    if payload.description is not None:
+        update_data["description"] = payload.description
+    if payload.published is not None:
+        update_data["published"] = payload.published
+
+    if update_data:
+        await session.execute(update(Course).where(Course.id == course_id).values(**update_data))
+
+    if payload.instructor_ids is not None:
+        if len(payload.instructor_ids) > MAX_INSTRUCTORS_PER_COURSE:
+            raise TooManyInstructorsError()
+        if len(payload.instructor_ids) == 0:
+            raise CannotRemoveLastInstructorError()
+        instructors = await _validate_instructors(session, payload.instructor_ids)
+        await session.execute(delete(CourseInstructor).where(CourseInstructor.course_id == course_id))
+        course_instructors = [
+            CourseInstructor(
+                course_id=course_id,
+                user_id=instructor.id,
+                is_primary=(index == 0),
+            )
+            for index, instructor in enumerate(instructors)
+        ]
+        session.add_all(course_instructors)
+
+    await session.commit()
+
+    stmt = select(Course).where(Course.id == course_id).options(*_COURSE_LOAD_OPTIONS)
+    result = await session.execute(stmt)
+    return result.scalars().unique().one()
 
 
 def _resolve_instructor_ids(payload: CourseCreate, current_user_id: UUID) -> list[UUID]:

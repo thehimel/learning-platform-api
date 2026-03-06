@@ -59,6 +59,26 @@ class CourseRate(BaseModel):
         return self
 
 
+class CourseUpdate(BaseModel):
+    """Schema for updating a course (partial — all fields optional)."""
+
+    title: Annotated[str | None, Field(default=None, min_length=1, max_length=500)] = None
+    description: str | None = None
+    published: bool | None = None
+    instructor_ids: list[uuid.UUID] | None = Field(
+        default=None,
+        max_length=MAX_INSTRUCTORS_PER_COURSE,
+        description="Replace instructors with these IDs. At least one required when provided.",
+    )
+
+    @model_validator(mode="before")
+    @classmethod
+    def ensure_unique_instructor_ids(cls, data: object) -> object:
+        if isinstance(data, dict) and data.get("instructor_ids"):
+            data["instructor_ids"] = list(dict.fromkeys(data["instructor_ids"]))
+        return data
+
+
 class CourseCreate(BaseModel):
     """Schema for creating a course."""
 
@@ -89,7 +109,7 @@ class CourseCreate(BaseModel):
 
     @model_validator(mode="before")
     @classmethod
-    def dedupe_instructor_ids(cls, data: object) -> object:
+    def ensure_unique_instructor_ids(cls, data: object) -> object:
         if isinstance(data, dict) and "instructor_ids" in data:
             ids = data["instructor_ids"]
             if ids:

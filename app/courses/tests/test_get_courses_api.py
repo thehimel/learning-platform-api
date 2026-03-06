@@ -4,11 +4,11 @@ import pytest
 
 
 class TestGetCoursesAPI:
-    """Tests for the course list endpoint (GET /courses)."""
+    """Tests for the get courses endpoint (GET /courses)."""
 
     @pytest.mark.asyncio
     async def test_get_courses_empty_returns_200(self, client_e2e, routes):
-        """GET /courses returns 200 with empty list when no courses exist (public endpoint)."""
+        """GET /courses returns 200 with empty array when no courses exist (public endpoint)."""
         response = await client_e2e.get(routes.courses_get)
 
         assert response.status_code == 200

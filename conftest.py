@@ -121,6 +121,12 @@ def routes():
     def users_delete_by_id(user_id: uuid.UUID) -> str:
         return app.url_path_for(UserRouteName.users_delete_by_id, id=user_id)
 
+    def courses_get_by_id(course_id: int) -> str:
+        return app.url_path_for(CourseRouteName.courses_get_by_id, id=course_id)
+
+    def courses_update(course_id: int) -> str:
+        return app.url_path_for(CourseRouteName.courses_update, id=course_id)
+
     def courses_enroll(course_id: int) -> str:
         return app.url_path_for(CourseRouteName.courses_enroll, id=course_id)
 
@@ -137,6 +143,8 @@ def routes():
         users_update_by_id=users_update_by_id,
         users_delete_by_id=users_delete_by_id,
         courses_get=app.url_path_for(CourseRouteName.courses_get),
+        courses_get_by_id=courses_get_by_id,
+        courses_update=courses_update,
         courses_create=app.url_path_for(CourseRouteName.courses_create),
         courses_enroll=courses_enroll,
         courses_unenroll=courses_unenroll,
@@ -261,6 +269,12 @@ async def client_admin(db_session, test_admin):
     async def override_current_admin():
         return test_admin
 
+    async def override_current_active_user():
+        return test_admin
+
+    async def override_current_instructor():
+        return test_admin
+
     app.dependency_overrides[get_db] = override_get_db  # type: ignore[attr-defined]
     app.dependency_overrides[current_admin] = override_current_admin  # type: ignore[attr-defined]
 
@@ -374,6 +388,18 @@ async def instructor_e2e(db_session, client_e2e, routes):
     db_session.add(instructor)
     await db_session.flush()
     token = await e2e_login(client_e2e, instructor.email, "InstructorPass1!", routes.auth_login)
+    return instructor, token
+
+
+@pytest.fixture
+async def other_instructor_e2e(db_session, client_e2e, routes):
+    """Another instructor user + token (for tests needing two instructors)."""
+    from app.tests.helpers import e2e_login
+
+    instructor = _e2e_user(UserRole.instructor, "OtherInstructor1!", "other-instructor")
+    db_session.add(instructor)
+    await db_session.flush()
+    token = await e2e_login(client_e2e, instructor.email, "OtherInstructor1!", routes.auth_login)
     return instructor, token
 
 

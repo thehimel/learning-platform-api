@@ -7,17 +7,22 @@ from app.courses.routes import RouteName
 from app.courses.error_codes import CourseErrorCode
 from app.courses.exceptions import (
     AlreadyEnrolledError,
+    CannotRemoveLastInstructorError,
     CourseNotFoundError,
     InvalidInstructorIdsError,
     NotEnrolledError,
+    NotInstructorOfCourseError,
+    TooManyInstructorsError,
 )
 from app.exceptions import error_detail
 from app.courses.models import Course, CourseEnrollment, CourseRating
-from app.courses.schemas import CourseCreate, CourseRead, CourseRate, EnrollmentRead, RatingRead
+from app.courses.schemas import CourseCreate, CourseRead, CourseRate, CourseUpdate, EnrollmentRead, RatingRead
 from app.courses.service import (
     create_course as create_course_service,
     enroll_course as enroll_course_service,
-    list_courses as list_courses_service,
+    get_course as get_course_service,
+    get_courses as get_courses_service,
+    update_course as update_course_service,
     rate_course as rate_course_service,
     unenroll_course as unenroll_course_service,
 )
@@ -28,9 +33,68 @@ router = APIRouter()
 
 
 @router.get("/", response_model=list[CourseRead], name=RouteName.courses_get)
-async def list_courses(session: AsyncSession = Depends(get_db)) -> list[Course]:
-    """List all courses. Public endpoint."""
-    return await list_courses_service(session)
+async def get_courses(session: AsyncSession = Depends(get_db)) -> list[Course]:
+    """Get all courses. Public endpoint."""
+    return await get_courses_service(session)
+
+
+@router.get("/{id}", response_model=CourseRead, name=RouteName.courses_get_by_id)
+async def get_course(
+    id: int,
+    session: AsyncSession = Depends(get_db),
+) -> Course:
+    """Fetch a single course by ID for detail pages. Public endpoint."""
+    try:
+        return await get_course_service(id, session)
+    except CourseNotFoundError:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=error_detail(CourseErrorCode.course_not_found, "Course not found."),
+        )
+
+
+@router.patch("/{id}", response_model=CourseRead, name=RouteName.courses_update)
+async def update_course(
+    id: int,
+    payload: CourseUpdate,
+    current_user: User = Depends(current_instructor),
+    session: AsyncSession = Depends(get_db),
+) -> Course:
+    """Update course (title, description, published, instructors). Must be instructor of course or admin."""
+    try:
+        return await update_course_service(id, payload, current_user, session)
+    except CourseNotFoundError:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=error_detail(CourseErrorCode.course_not_found, "Course not found."),
+        )
+    except NotInstructorOfCourseError:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=error_detail(CourseErrorCode.not_instructor_of_course, "Not an instructor of this course."),
+        )
+    except InvalidInstructorIdsError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=error_detail(
+                CourseErrorCode.invalid_instructor_ids,
+                str(e),
+                missing_ids=[str(missing_id) for missing_id in e.missing_ids],
+            ),
+        )
+    except TooManyInstructorsError:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=error_detail(CourseErrorCode.too_many_instructors, "Too many instructors for this course."),
+        )
+    except CannotRemoveLastInstructorError:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=error_detail(
+                CourseErrorCode.cannot_remove_last_instructor,
+                "Cannot remove the last instructor. At least one instructor required.",
+            ),
+        )
 
 
 @router.post("/", response_model=CourseRead, status_code=status.HTTP_201_CREATED, name=RouteName.courses_create)

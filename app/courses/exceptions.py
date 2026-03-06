@@ -25,3 +25,21 @@ class CourseNotFoundError(Exception):
     """Raised when a course does not exist."""
 
     pass
+
+
+class NotInstructorOfCourseError(Exception):
+    """Raised when user is not an instructor of the course and cannot modify it."""
+
+    pass
+
+
+class TooManyInstructorsError(Exception):
+    """Raised when instructor_ids exceeds MAX_INSTRUCTORS_PER_COURSE."""
+
+    pass
+
+
+class CannotRemoveLastInstructorError(Exception):
+    """Raised when updating instructor_ids would leave the course with no instructors."""
+
+    pass

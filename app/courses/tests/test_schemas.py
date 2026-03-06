@@ -52,7 +52,7 @@ class TestCourseCreate:
         )
         assert payload.instructor_ids == [instructor_id]
 
-    def test_dedupe_instructor_ids(self):
+    def test_ensure_unique_instructor_ids(self):
         """Duplicate instructor_ids are deduplicated."""
         instructor_id = uuid.uuid4()
         payload = CourseCreate.model_validate(
