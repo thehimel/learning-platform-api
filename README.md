@@ -87,6 +87,8 @@ See [docs/commands.md](docs/commands.md) for Docker, pre-commit, and more.
 
 ## API Overview
 
+![API endpoints overview](assets/api-docs-overview.png)
+
 Interactive API docs: http://localhost:8000/docs
 
 ## Testing
