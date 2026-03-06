@@ -15,11 +15,11 @@ from app.users.models import User
 logger = get_logger(__name__)
 
 _password_policy = PasswordPolicy.from_names(
-    length=8,       # minimum 8 characters
-    uppercase=1,    # at least 1 uppercase letter
-    numbers=1,      # at least 1 digit
-    special=1,      # at least 1 special character
-    nonletters=1,   # at least 1 non-letter (digit or special)
+    length=8,  # minimum 8 characters
+    uppercase=1,  # at least 1 uppercase letter
+    numbers=1,  # at least 1 digit
+    special=1,  # at least 1 special character
+    nonletters=1,  # at least 1 non-letter (digit or special)
 )
 
 # Human-readable names for each failed test, keyed on the class name returned by password-strength.
@@ -39,9 +39,7 @@ class UserManager(UUIDIDMixin, BaseUserManager[User, uuid.UUID]):
     async def validate_password(self, password: str, user) -> None:
         failures = _password_policy.test(password)
         if failures:
-            reasons = "; ".join(
-                _POLICY_MESSAGES.get(type(f).__name__, str(f)) for f in failures
-            )
+            reasons = "; ".join(_POLICY_MESSAGES.get(type(f).__name__, str(f)) for f in failures)
             raise InvalidPasswordException(reason=reasons)
 
         if hasattr(user, "email") and user.email and user.email.split("@")[0].lower() in password.lower():
@@ -62,9 +60,7 @@ class UserManager(UUIDIDMixin, BaseUserManager[User, uuid.UUID]):
     ):
         logger.info("User %s logged in.", user.id)
 
-    async def on_after_forgot_password(
-        self, user: User, token: str, request: Optional[Request] = None
-    ):
+    async def on_after_forgot_password(self, user: User, token: str, request: Optional[Request] = None):
         logger.info("User %s requested a password reset.", user.id)
         # TODO: send password reset email — see docs/config/email-setup.md
 

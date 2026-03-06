@@ -16,11 +16,13 @@ _PRIVILEGED_UPDATE_FIELDS = (*_PRIVILEGED_FIELDS, "role", "email")
 
 def _make_schema_cleaner(*fields: str):
     """Return a json_schema_extra callback that removes the given fields."""
+
     def cleaner(schema: dict) -> None:
         for field in fields:
             schema.get("properties", {}).pop(field, None)
             if field in schema.get("required", []):
                 schema["required"].remove(field)
+
     return cleaner
 
 

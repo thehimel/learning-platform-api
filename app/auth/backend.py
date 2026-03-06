@@ -34,8 +34,10 @@ current_active_user = fastapi_users.current_user(active=True)
 
 # --- Role-based access control ---
 
+
 def require_role(*roles: UserRole):
     """Factory that returns a dependency enforcing one of the given roles."""
+
     async def checker(user: User = Depends(current_active_user)) -> User:
         if user.role not in roles:
             raise HTTPException(
@@ -43,6 +45,7 @@ def require_role(*roles: UserRole):
                 detail=error_detail(AuthErrorCode.insufficient_permissions, "Insufficient permissions."),
             )
         return user
+
     return checker
 
 

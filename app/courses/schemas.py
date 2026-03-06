@@ -35,7 +35,9 @@ class CourseCreate(BaseModel):
     @model_validator(mode="after")
     def validate_instructors(self) -> "CourseCreate":
         if not self.add_me_as_instructor and not self.instructor_ids:
-            raise ValueError("At least one instructor required: set add_me_as_instructor=true or provide instructor_ids")
+            raise ValueError(
+                "At least one instructor required: set add_me_as_instructor=true or provide instructor_ids"
+            )
         max_others = MAX_INSTRUCTORS_PER_COURSE - 1 if self.add_me_as_instructor else MAX_INSTRUCTORS_PER_COURSE
         if len(self.instructor_ids) > max_others:
             raise ValueError(
