@@ -36,7 +36,7 @@ A learning platform API built with FastAPI. Supports courses, enrollments, ratin
 ### 1. Clone and install
 
 ```shell
-pip install -r requirements.txt
+uv sync
 ```
 
 ### 2. Configure environment
@@ -64,7 +64,7 @@ alembic upgrade head
 ### 5. Start the API
 
 ```shell
-uvicorn app.main:app --reload
+uv run uvicorn app.main:app --reload
 ```
 
 API: http://localhost:8000  
@@ -74,7 +74,8 @@ Docs: http://localhost:8000/docs
 
 | Command | Purpose |
 |---------|---------|
-| `uvicorn app.main:app --reload` | Run API (dev) |
+| `uv sync` | Install dependencies (from pyproject.toml) |
+| `uv run uvicorn app.main:app --reload` | Run API (dev) |
 | `alembic upgrade head` | Apply migrations |
 | `alembic revision --autogenerate -m "message"` | Create migration |
 | `pytest` | Run tests |
