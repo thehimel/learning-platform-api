@@ -9,9 +9,11 @@ Each domain module (e.g. `users`, `courses`) follows the same structure:
 - `router.py` — HTTP handlers, dependency wiring
 - `schemas.py` — Pydantic request/response models
 - `models.py` — SQLAlchemy ORM models
-- `service.py` — Business logic
+- `service.py` — Business logic (or `manager.py` when using fastapi-users)
 - `exceptions.py` — Domain-specific exceptions (when needed)
 - `tests/` — Tests for the module (colocated with the code)
+
+When using third-party integrations (e.g. fastapi-users), structure may differ: `users` has `manager.py` instead of `service.py`; `auth` has no `schemas.py` or `models.py` (uses users').
 
 ## Schema Naming
 
@@ -60,6 +62,14 @@ Align naming across modules (e.g. `UserRead`, `CourseRead`).
 - Keep business logic in the `service` layer
 - Router handles HTTP concerns only: validation, auth, response shaping, error mapping
 
+## Response Serialization
+
+- Services return ORM objects; do not manually build Pydantic response models in the service layer
+- Use `response_model` on endpoints — FastAPI serializes the returned ORM through the schema
+- For simple 1:1 mappings, use `model_config = ConfigDict(from_attributes=True)` on the Read schema
+- For nested or derived fields (e.g. `enrolled_count`, sorted `instructors`), add a `model_validator(mode="before")` that accepts the ORM and returns a dict for the schema
+- Router return type hints should match what the service returns (e.g. `-> list[Course]`, `-> Course`), not the response schema
+
 ## Code Formatting
 
 - Blank lines between logical groups (validation → create → assign → return)
@@ -71,5 +81,5 @@ Align naming across modules (e.g. `UserRead`, `CourseRead`).
 
 - Domain tests live in `app/<domain>/tests/` (e.g. `app/courses/tests/`)
 - Shared fixtures in project root `conftest.py`
-- Use the `routes` fixture from `conftest` — it provides paths via `app.url_path_for(RouteName.*)` so tests stay in sync with the app (e.g. `routes.users_me`, `routes.users_by_id(user_id)`, `routes.courses_create`) — never hardcode URLs
-- Route names live in each domain’s `routes.py` (e.g. `app.users.routes.RouteName`, `app.courses.routes.RouteName`) — routers and tests use these enums
+- Use the `routes` fixture from `conftest` — it provides paths via `app.url_path_for(RouteName.*)` so tests stay in sync with the app (e.g. `routes.users_me`, `routes.users_by_id(user_id)`, `routes.courses_create`, `routes.auth_login`) — never hardcode URLs
+- Route names live in each domain’s `routes.py` (e.g. `app.auth.routes.RouteName`, `app.users.routes.RouteName`, `app.courses.routes.RouteName`) — routers and tests use these enums

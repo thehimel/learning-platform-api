@@ -200,6 +200,7 @@ Ordered by type: Unit → Integration → E2E → Security → Smoke → Sanity 
 | [app/users/tests/test_manager_unit.py](../../app/users/tests/test_manager_unit.py) | Unit |
 | [app/courses/tests/test_service_unit.py](../../app/courses/tests/test_service_unit.py) | Unit |
 | [app/courses/tests/test_schemas.py](../../app/courses/tests/test_schemas.py) | Unit |
+| [app/courses/tests/test_get_courses_api.py](../../app/courses/tests/test_get_courses_api.py) | Integration |
 | [app/courses/tests/test_create_course_api.py](../../app/courses/tests/test_create_course_api.py) | Integration |
 | [app/users/tests/test_users_admin_api.py](../../app/users/tests/test_users_admin_api.py) | Integration |
 | [app/users/tests/test_users_me_api.py](../../app/users/tests/test_users_me_api.py) | Integration |
