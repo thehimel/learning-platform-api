@@ -5,7 +5,14 @@ info:
 
 http:
   method: GET
-  url: "{{courses}}"
+  url: "{{courses}}?published=true&q=string"
+  params:
+    - name: published
+      value: "true"
+      type: query
+    - name: q
+      value: string
+      type: query
   auth:
     type: bearer
     token: ""
