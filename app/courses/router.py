@@ -2,7 +2,7 @@ from fastapi import APIRouter, BackgroundTasks, Depends
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.auth.backend import current_active_user, current_instructor
+from app.auth.backend import current_active_user, current_instructor, current_user_optional
 from app.courses.routes import RouteName
 from app.courses.models import Course, CourseEnrollment, CourseRating
 from app.courses.schemas import (
@@ -54,10 +54,14 @@ async def get_courses(
 @router.get("/{id}", response_model=CourseRead, name=RouteName.courses_get_by_id)
 async def get_course(
     id: int,
+    current_user: User | None = Depends(current_user_optional),
     session: AsyncSession = Depends(get_db),
 ) -> Course:
-    """Fetch a single course by ID for detail pages. Public endpoint."""
-    return await get_course_service(id, session)
+    """
+    Fetch a single course by ID. Public for published courses.
+    Unpublished courses require instructor or admin role.
+    """
+    return await get_course_service(id, session, current_user=current_user)
 
 
 @router.patch("/{id}", response_model=CourseRead, name=RouteName.courses_update)

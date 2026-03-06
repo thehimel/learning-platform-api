@@ -111,6 +111,7 @@ class CourseCreate(BaseModel):
         max_length=MAX_INSTRUCTORS_PER_COURSE,
         description="Other instructor user IDs. Creator is added when add_me_as_instructor=true.",
     )
+    published: bool = Field(default=False, description="When true, course appears in public list.")
 
     @model_validator(mode="after")
     def validate_instructors(self) -> "CourseCreate":

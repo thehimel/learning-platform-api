@@ -85,11 +85,11 @@ class TestGetCourseByIdAPI:
 
     @pytest.mark.asyncio
     async def test_get_course_public_no_auth_required(self, client_e2e, instructor_e2e, routes):
-        """GET /courses/{id} is public — no authentication required."""
+        """GET /courses/{id} is public for published courses — no authentication required."""
         _, instructor_token = instructor_e2e
         create_resp = await client_e2e.post(
             routes.courses_create,
-            json={"title": "Public Course", "add_me_as_instructor": True, "instructor_ids": []},
+            json={"title": "Public Course", "add_me_as_instructor": True, "instructor_ids": [], "published": True},
             headers={"Authorization": f"Bearer {instructor_token}"},
         )
         assert create_resp.status_code == 201
@@ -99,3 +99,40 @@ class TestGetCourseByIdAPI:
 
         assert response.status_code == 200
         assert response.json()["title"] == "Public Course"
+
+    @pytest.mark.asyncio
+    async def test_get_course_unpublished_returns_404_without_auth(
+        self, client_e2e, instructor_e2e, routes
+    ):
+        """Unpublished courses return 404 for unauthenticated requests (IDOR prevention)."""
+        _, instructor_token = instructor_e2e
+        create_resp = await client_e2e.post(
+            routes.courses_create,
+            json={"title": "Draft Course", "add_me_as_instructor": True, "instructor_ids": []},
+            headers={"Authorization": f"Bearer {instructor_token}"},
+        )
+        assert create_resp.status_code == 201
+        course_id = create_resp.json()["id"]
+
+        response = await client_e2e.get(routes.courses_get_by_id(course_id))
+
+        assert response.status_code == 404
+        assert response.json()["detail"]["code"] == "course_not_found"
+
+    @pytest.mark.asyncio
+    async def test_get_course_unpublished_returns_200_for_instructor(
+        self, client, routes
+    ):
+        """Instructors can access their own unpublished courses."""
+        create_resp = await client.post(
+            routes.courses_create,
+            json={"title": "Draft Course", "add_me_as_instructor": True, "instructor_ids": []},
+        )
+        assert create_resp.status_code == 201
+        course_id = create_resp.json()["id"]
+
+        response = await client.get(routes.courses_get_by_id(course_id))
+
+        assert response.status_code == 200
+        assert response.json()["title"] == "Draft Course"
+        assert response.json()["published"] is False

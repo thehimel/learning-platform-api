@@ -11,7 +11,7 @@ class TestEnrollAPI:
         """Enroll returns 201 with full enrollment resource."""
         create_resp = await client.post(
             routes.courses_create,
-            json={"title": "Enroll Test", "add_me_as_instructor": True, "instructor_ids": []},
+            json={"title": "Enroll Test", "add_me_as_instructor": True, "instructor_ids": [], "published": True},
         )
         assert create_resp.status_code == 201
         course_id = create_resp.json()["id"]
@@ -60,7 +60,7 @@ class TestEnrollAPI:
         """Student can unenroll from a course."""
         create_resp = await client.post(
             routes.courses_create,
-            json={"title": "Unenroll Test", "add_me_as_instructor": True, "instructor_ids": []},
+            json={"title": "Unenroll Test", "add_me_as_instructor": True, "instructor_ids": [], "published": True},
         )
         assert create_resp.status_code == 201
         course_id = create_resp.json()["id"]
@@ -79,7 +79,7 @@ class TestEnrollAPI:
         """Unenrolling when not enrolled returns 409 Conflict."""
         create_resp = await client.post(
             routes.courses_create,
-            json={"title": "No Enroll", "add_me_as_instructor": True, "instructor_ids": []},
+            json={"title": "No Enroll", "add_me_as_instructor": True, "instructor_ids": [], "published": True},
         )
         assert create_resp.status_code == 201
         course_id = create_resp.json()["id"]

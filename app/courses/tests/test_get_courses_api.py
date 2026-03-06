@@ -29,6 +29,7 @@ class TestGetCoursesAPI:
             "description": "First course",
             "add_me_as_instructor": True,
             "instructor_ids": [],
+            "published": True,
         }
         create_resp = await client.post(routes.courses_create, json=payload)
         assert create_resp.status_code == 201
@@ -57,6 +58,7 @@ class TestGetCoursesAPI:
                 "title": title,
                 "add_me_as_instructor": True,
                 "instructor_ids": [],
+                "published": True,
             }
             await client.post(routes.courses_create, json=payload)
 
@@ -78,6 +80,7 @@ class TestGetCoursesAPI:
                 "title": f"Course {i}",
                 "add_me_as_instructor": True,
                 "instructor_ids": [],
+                "published": True,
             }
             await client.post(routes.courses_create, json=payload)
 

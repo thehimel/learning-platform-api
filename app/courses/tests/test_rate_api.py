@@ -11,7 +11,7 @@ class TestRateAPI:
         """User can rate a course. Returns 201 with full rating resource."""
         create_resp = await client.post(
             routes.courses_create,
-            json={"title": "Rate Test", "add_me_as_instructor": True, "instructor_ids": []},
+            json={"title": "Rate Test", "add_me_as_instructor": True, "instructor_ids": [], "published": True},
         )
         assert create_resp.status_code == 201
         course_id = create_resp.json()["id"]
@@ -35,7 +35,7 @@ class TestRateAPI:
         """Rating again updates the existing rating. Returns 201 with full rating resource."""
         create_resp = await client.post(
             routes.courses_create,
-            json={"title": "Upsert Rate", "add_me_as_instructor": True, "instructor_ids": []},
+            json={"title": "Upsert Rate", "add_me_as_instructor": True, "instructor_ids": [], "published": True},
         )
         assert create_resp.status_code == 201
         course_id = create_resp.json()["id"]
@@ -65,7 +65,7 @@ class TestRateAPI:
         """Rating outside 1–5 returns 422."""
         create_resp = await client.post(
             routes.courses_create,
-            json={"title": "Invalid Rate", "add_me_as_instructor": True, "instructor_ids": []},
+            json={"title": "Invalid Rate", "add_me_as_instructor": True, "instructor_ids": [], "published": True},
         )
         assert create_resp.status_code == 201
         course_id = create_resp.json()["id"]

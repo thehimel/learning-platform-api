@@ -30,6 +30,9 @@ fastapi_users = FastAPIUsers[User, uuid.UUID](get_user_manager, [auth_backend])
 # Base dependency: any authenticated active user
 current_active_user = fastapi_users.current_user(active=True)
 
+# Optional: returns None if unauthenticated (for public endpoints with conditional visibility)
+current_user_optional = fastapi_users.current_user(active=True, optional=True)
+
 
 # --- Role-based access control ---
 

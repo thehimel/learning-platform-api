@@ -33,12 +33,15 @@ _COURSE_LOAD_OPTIONS = (
 )
 
 
-async def get_course(id: int, session: AsyncSession) -> Course:
+async def get_course(id: int, session: AsyncSession, current_user: User | None = None) -> Course:
     """
     Fetch a single course by ID with instructors and enrolled count.
 
+    Unpublished courses are only visible to instructors of the course or admins.
+    Others receive CourseNotFoundError (avoids IDOR enumeration).
+
     Raises:
-        CourseNotFoundError: if course does not exist
+        CourseNotFoundError: if course does not exist or is unpublished and user lacks access
     """
     stmt = (
         select(Course)
@@ -49,6 +52,15 @@ async def get_course(id: int, session: AsyncSession) -> Course:
     course = result.scalars().unique().one_or_none()
     if course is None:
         raise CourseNotFoundError()
+
+    if not course.published:
+        if current_user is None:
+            raise CourseNotFoundError()
+        is_admin = current_user.role == UserRole.admin
+        is_instructor = any(ci.user_id == current_user.id for ci in course.instructors)
+        if not is_admin and not is_instructor:
+            raise CourseNotFoundError()
+
     return course
 
 
@@ -58,15 +70,16 @@ async def get_courses(
     offset: int = 0,
 ) -> tuple[list[Course], int]:
     """
-    Get courses with pagination. Returns (courses, total_count).
-    ORM objects; CourseRead auto-transforms.
+    Get courses with pagination. Returns only published courses.
+    Returns (courses, total_count). ORM objects; CourseRead auto-transforms.
     """
     base_stmt = (
         select(Course)
+        .where(Course.published == True)
         .options(*_COURSE_LOAD_OPTIONS)
         .order_by(Course.created_at.desc(), Course.id.desc())
     )
-    count_stmt = select(func.count()).select_from(Course)
+    count_stmt = select(func.count()).select_from(Course).where(Course.published == True)
     total_result = await session.execute(count_stmt)
     total = total_result.scalar_one()
 
@@ -96,6 +109,7 @@ async def create_course(
     course = Course(
         title=payload.title,
         description=payload.description,
+        published=payload.published,
     )
     session.add(course)
     await session.flush()

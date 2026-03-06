@@ -141,7 +141,7 @@ class TestE2EInstructorFlow:
         _, instructor_token = instructor_e2e
         create_resp = await client_e2e.post(
             routes.courses_create,
-            json={"title": "E2E Enroll Course", "add_me_as_instructor": True, "instructor_ids": []},
+            json={"title": "E2E Enroll Course", "add_me_as_instructor": True, "instructor_ids": [], "published": True},
             headers=_auth_headers(instructor_token),
         )
         assert create_resp.status_code == 201
@@ -183,7 +183,7 @@ class TestE2EInstructorFlow:
         _, instructor_token = instructor_e2e
         create_resp = await client_e2e.post(
             routes.courses_create,
-            json={"title": "E2E Rate Course", "add_me_as_instructor": True, "instructor_ids": []},
+            json={"title": "E2E Rate Course", "add_me_as_instructor": True, "instructor_ids": [], "published": True},
             headers=_auth_headers(instructor_token),
         )
         assert create_resp.status_code == 201

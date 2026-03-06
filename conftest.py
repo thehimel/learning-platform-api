@@ -18,7 +18,7 @@ from sqlalchemy.pool import NullPool
 # Run rate_course recompute inline in tests (avoids BackgroundTasks + pytest event loop issues)
 os.environ.setdefault("RATING_RECOMPUTE_ASYNC", "false")
 
-from app.auth.backend import current_active_user, current_admin, current_instructor
+from app.auth.backend import current_active_user, current_admin, current_instructor, current_user_optional
 from app.auth.routes import RouteName as AuthRouteName
 from app.courses.routes import RouteName as CourseRouteName
 from app.database import get_db
@@ -308,9 +308,13 @@ async def client(db_session, test_instructor):
     async def override_current_instructor():
         return test_instructor
 
+    async def override_current_user_optional():
+        return test_instructor
+
     app.dependency_overrides[get_db] = override_get_db  # type: ignore[attr-defined]
     app.dependency_overrides[current_active_user] = override_current_active_user  # type: ignore[attr-defined]
     app.dependency_overrides[current_instructor] = override_current_instructor  # type: ignore[attr-defined]
+    app.dependency_overrides[current_user_optional] = override_current_user_optional  # type: ignore[attr-defined]
 
     async with httpx.AsyncClient(
         transport=httpx.ASGITransport(app=app),
