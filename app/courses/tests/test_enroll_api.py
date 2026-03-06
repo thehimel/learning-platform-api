@@ -28,7 +28,7 @@ class TestEnrollAPI:
         # Verify enrolled_count increased
         list_resp = await client.get(routes.courses_get)
         assert list_resp.status_code == 200
-        course = next(c for c in list_resp.json() if c["id"] == course_id)
+        course = next(c for c in list_resp.json()["items"] if c["id"] == course_id)
         assert course["enrolled_count"] == 1
 
     @pytest.mark.asyncio
@@ -71,7 +71,7 @@ class TestEnrollAPI:
         assert response.status_code == 204
 
         list_resp = await client.get(routes.courses_get)
-        course = next(c for c in list_resp.json() if c["id"] == course_id)
+        course = next(c for c in list_resp.json()["items"] if c["id"] == course_id)
         assert course["enrolled_count"] == 0
 
     @pytest.mark.asyncio

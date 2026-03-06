@@ -163,7 +163,7 @@ class TestE2EInstructorFlow:
 
         # Verify enrolled_count
         list_resp = await client_e2e.get(routes.courses_get)
-        course = next(c for c in list_resp.json() if c["id"] == course_id)
+        course = next(c for c in list_resp.json()["items"] if c["id"] == course_id)
         assert course["enrolled_count"] == 1
 
         # Student unenrolls
@@ -174,7 +174,7 @@ class TestE2EInstructorFlow:
         assert unenroll_resp.status_code == 204
 
         list_resp2 = await client_e2e.get(routes.courses_get)
-        course2 = next(c for c in list_resp2.json() if c["id"] == course_id)
+        course2 = next(c for c in list_resp2.json()["items"] if c["id"] == course_id)
         assert course2["enrolled_count"] == 0
 
     @pytest.mark.asyncio
@@ -203,7 +203,7 @@ class TestE2EInstructorFlow:
         assert rate_resp.json()["rating"] == 4.0
 
         list_resp = await client_e2e.get(routes.courses_get)
-        course = next(c for c in list_resp.json() if c["id"] == course_id)
+        course = next(c for c in list_resp.json()["items"] if c["id"] == course_id)
         assert course["rating"] == 4.0
 
         await client_e2e.post(
@@ -212,7 +212,7 @@ class TestE2EInstructorFlow:
             headers=_auth_headers(token),
         )
         list_resp2 = await client_e2e.get(routes.courses_get)
-        course2 = next(c for c in list_resp2.json() if c["id"] == course_id)
+        course2 = next(c for c in list_resp2.json()["items"] if c["id"] == course_id)
         assert course2["rating"] == 5.0
 
 

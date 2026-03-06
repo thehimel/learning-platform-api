@@ -27,7 +27,7 @@ class TestRateAPI:
         assert "created_at" in data
 
         list_resp = await client.get(routes.courses_get)
-        course = next(c for c in list_resp.json() if c["id"] == course_id)
+        course = next(c for c in list_resp.json()["items"] if c["id"] == course_id)
         assert course["rating"] == 4.5
 
     @pytest.mark.asyncio
@@ -49,7 +49,7 @@ class TestRateAPI:
         assert data["rating"] == 5.0
 
         list_resp = await client.get(routes.courses_get)
-        course = next(c for c in list_resp.json() if c["id"] == course_id)
+        course = next(c for c in list_resp.json()["items"] if c["id"] == course_id)
         assert course["rating"] == 5.0
 
     @pytest.mark.asyncio

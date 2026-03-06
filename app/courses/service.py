@@ -19,7 +19,12 @@ from app.courses.errors import (
 )
 from app.courses.models import Course, CourseEnrollment, CourseInstructor, CourseRating
 from app.database import AsyncSessionLocal
-from app.courses.schemas import CourseCreate, CourseRate, CourseUpdate, MAX_INSTRUCTORS_PER_COURSE
+from app.courses.schemas import (
+    CourseCreate,
+    CourseRate,
+    CourseUpdate,
+    MAX_INSTRUCTORS_PER_COURSE,
+)
 from app.users.models import User, UserRole
 
 # Eager load options for Course → instructors → user. enrolled_count via column_property (no enrollments load).
@@ -47,15 +52,28 @@ async def get_course(id: int, session: AsyncSession) -> Course:
     return course
 
 
-async def get_courses(session: AsyncSession) -> list[Course]:
-    """Get all courses with instructors and enrolled count. Returns ORM objects; CourseRead auto-transforms."""
-    stmt = (
+async def get_courses(
+    session: AsyncSession,
+    limit: int = 20,
+    offset: int = 0,
+) -> tuple[list[Course], int]:
+    """
+    Get courses with pagination. Returns (courses, total_count).
+    ORM objects; CourseRead auto-transforms.
+    """
+    base_stmt = (
         select(Course)
         .options(*_COURSE_LOAD_OPTIONS)
         .order_by(Course.created_at.desc(), Course.id.desc())
     )
+    count_stmt = select(func.count()).select_from(Course)
+    total_result = await session.execute(count_stmt)
+    total = total_result.scalar_one()
+
+    stmt = base_stmt.limit(limit).offset(offset)
     result = await session.execute(stmt)
-    return list(result.scalars().unique().all())
+    courses = list(result.scalars().unique().all())
+    return courses, total
 
 
 async def create_course(

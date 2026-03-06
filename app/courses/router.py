@@ -5,7 +5,17 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.auth.backend import current_active_user, current_instructor
 from app.courses.routes import RouteName
 from app.courses.models import Course, CourseEnrollment, CourseRating
-from app.courses.schemas import CourseCreate, CourseRead, CourseRate, CourseUpdate, EnrollmentRead, RatingRead
+from app.courses.schemas import (
+    CourseCreate,
+    CourseListResponse,
+    CourseRead,
+    CourseRate,
+    CourseUpdate,
+    DEFAULT_PAGE_SIZE,
+    EnrollmentRead,
+    MAX_PAGE_SIZE,
+    RatingRead,
+)
 from app.courses.service import (
     create_course as create_course_service,
     enroll_course as enroll_course_service,
@@ -23,10 +33,22 @@ from app.users.models import User
 router = APIRouter()
 
 
-@router.get("/", response_model=list[CourseRead], name=RouteName.courses_get)
-async def get_courses(session: AsyncSession = Depends(get_db)) -> list[Course]:
-    """Get all courses. Public endpoint."""
-    return await get_courses_service(session)
+@router.get("/", response_model=CourseListResponse, name=RouteName.courses_get)
+async def get_courses(
+    limit: int = DEFAULT_PAGE_SIZE,
+    offset: int = 0,
+    session: AsyncSession = Depends(get_db),
+) -> CourseListResponse:
+    """
+    Get courses with pagination. Public endpoint.
+
+    - **limit**: Max items per page (default 20, max 100).
+    - **offset**: Number of items to skip.
+    """
+    limit = min(max(1, limit), MAX_PAGE_SIZE)
+    offset = max(0, offset)
+    courses, total = await get_courses_service(session, limit=limit, offset=offset)
+    return CourseListResponse(items=courses, total=total, limit=limit, offset=offset)
 
 
 @router.get("/{id}", response_model=CourseRead, name=RouteName.courses_get_by_id)

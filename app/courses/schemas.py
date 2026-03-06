@@ -7,6 +7,8 @@ from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 MAX_INSTRUCTORS_PER_COURSE = 10
 MAX_DESCRIPTION_LENGTH = 5000
+DEFAULT_PAGE_SIZE = 20
+MAX_PAGE_SIZE = 100
 
 
 def _escape_html(value: str | None) -> str | None:
@@ -139,6 +141,15 @@ class CourseCreate(BaseModel):
         if self.description is not None:
             object.__setattr__(self, "description", _escape_html(self.description))
         return self
+
+
+class CourseListResponse(BaseModel):
+    """Paginated list of courses."""
+
+    items: list["CourseRead"]
+    total: int
+    limit: int
+    offset: int
 
 
 class CourseRead(BaseModel):
