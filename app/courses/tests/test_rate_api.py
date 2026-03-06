@@ -7,8 +7,8 @@ class TestRateAPI:
     """Tests for the rate course endpoint."""
 
     @pytest.mark.asyncio
-    async def test_rate_returns_204(self, client, routes):
-        """User can rate a course."""
+    async def test_rate_returns_201(self, client, routes):
+        """User can rate a course. Returns 201 with full rating resource."""
         create_resp = await client.post(
             routes.courses_create,
             json={"title": "Rate Test", "add_me_as_instructor": True, "instructor_ids": []},
@@ -18,7 +18,14 @@ class TestRateAPI:
 
         response = await client.post(routes.courses_rate(course_id), json={"rating": 4.5})
 
-        assert response.status_code == 204
+        assert response.status_code == 201
+        data = response.json()
+        assert "id" in data
+        assert data["course_id"] == course_id
+        assert "user_id" in data
+        assert data["rating"] == 4.5
+        assert "created_at" in data
+        assert "/ratings/" in response.headers.get("location", "")
 
         list_resp = await client.get(routes.courses_get)
         course = next(c for c in list_resp.json() if c["id"] == course_id)
@@ -26,7 +33,7 @@ class TestRateAPI:
 
     @pytest.mark.asyncio
     async def test_rate_upsert_updates_existing(self, client, routes):
-        """Rating again updates the existing rating."""
+        """Rating again updates the existing rating. Returns 201 with full rating resource."""
         create_resp = await client.post(
             routes.courses_create,
             json={"title": "Upsert Rate", "add_me_as_instructor": True, "instructor_ids": []},
@@ -37,7 +44,10 @@ class TestRateAPI:
         await client.post(routes.courses_rate(course_id), json={"rating": 3.0})
         response = await client.post(routes.courses_rate(course_id), json={"rating": 5.0})
 
-        assert response.status_code == 204
+        assert response.status_code == 201
+        data = response.json()
+        assert data["course_id"] == course_id
+        assert data["rating"] == 5.0
 
         list_resp = await client.get(routes.courses_get)
         course = next(c for c in list_resp.json() if c["id"] == course_id)

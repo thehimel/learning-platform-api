@@ -164,7 +164,7 @@ async def rate_course(
     payload: CourseRate,
     current_user: User,
     session: AsyncSession,
-) -> None:
+) -> CourseRating:
     """
     Rate a course (upsert). One rating per user per course; updates if already rated.
 
@@ -182,14 +182,17 @@ async def rate_course(
             constraint="uq_course_rating",
             set_={"rating": rating_value},
         )
+        .returning(CourseRating)
     )
-    await session.execute(stmt)
+    result = await session.execute(stmt)
+    rating = result.scalars().one()
 
     # Recompute course aggregate rating
     avg_stmt = select(func.avg(CourseRating.rating)).where(CourseRating.course_id == course_id)
-    result = await session.execute(avg_stmt)
-    avg_rating = result.scalars().one_or_none()
+    avg_result = await session.execute(avg_stmt)
+    avg_rating = avg_result.scalars().one_or_none()
     await session.execute(
         update(Course).where(Course.id == course_id).values(rating=avg_rating)
     )
     await session.commit()
+    return rating

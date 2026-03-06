@@ -12,8 +12,8 @@ from app.courses.exceptions import (
     NotEnrolledError,
 )
 from app.exceptions import error_detail
-from app.courses.models import Course, CourseEnrollment
-from app.courses.schemas import CourseCreate, CourseRead, CourseRate, EnrollmentRead
+from app.courses.models import Course, CourseEnrollment, CourseRating
+from app.courses.schemas import CourseCreate, CourseRead, CourseRate, EnrollmentRead, RatingRead
 from app.courses.service import (
     create_course as create_course_service,
     enroll_course as enroll_course_service,
@@ -114,16 +114,21 @@ async def unenroll(
         )
 
 
-@router.post("/{id}/rate", status_code=status.HTTP_204_NO_CONTENT, name=RouteName.courses_rate)
+@router.post("/{id}/rate", response_model=RatingRead, status_code=status.HTTP_201_CREATED, name=RouteName.courses_rate)
 async def rate(
     id: int,
     payload: CourseRate,
+    request: Request,
+    response: Response,
     current_user: User = Depends(current_active_user),
     session: AsyncSession = Depends(get_db),
-) -> None:
-    """Rate a course (1–5). Upserts if user already rated. Requires authentication."""
+) -> CourseRating:
+    """Rate a course (1–5). Upserts if user already rated. Returns 201 with full rating resource."""
     try:
-        await rate_course_service(id, payload, current_user, session)
+        rating = await rate_course_service(id, payload, current_user, session)
+        base_path = request.url.path.removesuffix("/rate").rstrip("/")
+        response.headers["Location"] = f"{base_path}/ratings/{rating.id}"
+        return rating
     except CourseNotFoundError:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,

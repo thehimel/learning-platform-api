@@ -199,7 +199,8 @@ class TestE2EInstructorFlow:
             json={"rating": 4.0},
             headers=_auth_headers(token),
         )
-        assert rate_resp.status_code == 204
+        assert rate_resp.status_code == 201
+        assert rate_resp.json()["rating"] == 4.0
 
         list_resp = await client_e2e.get(routes.courses_get)
         course = next(c for c in list_resp.json() if c["id"] == course_id)

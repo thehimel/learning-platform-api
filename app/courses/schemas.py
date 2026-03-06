@@ -36,6 +36,18 @@ class EnrollmentRead(BaseModel):
     model_config = ConfigDict(from_attributes=True, frozen=True)
 
 
+class RatingRead(BaseModel):
+    """Schema for rating resource (created/updated on rate)."""
+
+    id: int
+    course_id: int
+    user_id: uuid.UUID
+    rating: float
+    created_at: datetime
+
+    model_config = ConfigDict(from_attributes=True, frozen=True)
+
+
 class CourseRate(BaseModel):
     """Schema for rating a course (1–5, one decimal)."""
 
