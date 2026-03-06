@@ -8,6 +8,7 @@ class RouteName(StrEnum):
     courses_get_by_id = "courses_get_by_id"
     courses_update = "courses_update"
     courses_create = "courses_create"
+    courses_delete = "courses_delete"
     courses_enroll = "courses_enroll"
     courses_unenroll = "courses_unenroll"
     courses_rate = "courses_rate"

@@ -222,6 +222,40 @@ async def update_course(
     return course
 
 
+async def delete_course(
+    id: int,
+    current_user: User,
+    session: AsyncSession,
+) -> None:
+    """
+    Delete a course. Admin can delete any course; instructor can delete only if they instruct it.
+
+    Cascades to course_instructors, course_ratings, course_enrollments.
+
+    Raises:
+        CourseNotFoundError: if course does not exist
+        NotInstructorOfCourseError: if user is not instructor of course and not admin
+    """
+    if not await _course_exists(session, id):
+        raise CourseNotFoundError()
+
+    is_admin = current_user.role == UserRole.admin
+    if not is_admin:
+        stmt = select(
+            exists().where(
+                CourseInstructor.course_id == id,
+                CourseInstructor.user_id == current_user.id,
+            )
+        )
+        result = await session.execute(stmt)
+        is_instructor_of_course = result.scalar_one()
+        if not is_instructor_of_course:
+            raise NotInstructorOfCourseError()
+
+    await session.execute(delete(Course).where(Course.id == id))
+    await session.commit()
+
+
 def _resolve_instructor_ids(payload: CourseCreate, current_user_id: UUID) -> list[UUID]:
     """Build deduplicated instructor list with creator first when add_me_as_instructor."""
     ids: list[UUID] = []

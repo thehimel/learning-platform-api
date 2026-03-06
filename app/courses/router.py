@@ -18,6 +18,7 @@ from app.courses.schemas import (
 )
 from app.courses.service import (
     create_course as create_course_service,
+    delete_course as delete_course_service,
     enroll_course as enroll_course_service,
     get_course as get_course_service,
     get_courses as get_courses_service,
@@ -80,6 +81,16 @@ async def update_course(
 ) -> Course:
     """Update course (title, description, published, instructors). Must be instructor of course or admin."""
     return await update_course_service(id, payload, current_user, session)
+
+
+@router.delete("/{id}", status_code=204, name=RouteName.courses_delete)
+async def delete_course(
+    id: int,
+    current_user: User = Depends(current_instructor),
+    session: AsyncSession = Depends(get_db),
+) -> None:
+    """Delete course. Admin can delete any; instructor can delete only if they instruct it."""
+    await delete_course_service(id, current_user, session)
 
 
 @router.post("/", response_model=CourseRead, status_code=201, name=RouteName.courses_create)

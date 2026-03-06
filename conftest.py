@@ -130,6 +130,9 @@ def routes():
     def courses_update(course_id: int) -> str:
         return app.url_path_for(CourseRouteName.courses_update, id=course_id)
 
+    def courses_delete(course_id: int) -> str:
+        return app.url_path_for(CourseRouteName.courses_delete, id=course_id)
+
     def courses_enroll(course_id: int) -> str:
         return app.url_path_for(CourseRouteName.courses_enroll, id=course_id)
 
@@ -148,6 +151,7 @@ def routes():
         courses_get=app.url_path_for(CourseRouteName.courses_get),
         courses_get_by_id=courses_get_by_id,
         courses_update=courses_update,
+        courses_delete=courses_delete,
         courses_create=app.url_path_for(CourseRouteName.courses_create),
         courses_enroll=courses_enroll,
         courses_unenroll=courses_unenroll,
