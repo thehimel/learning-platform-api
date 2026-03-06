@@ -18,11 +18,7 @@ Without rate limiting:
 
 ## Installation
 
-```bash
-pip install slowapi
-```
-
-Already included in `requirements.txt`.
+Run `uv sync` — `slowapi` is already in `pyproject.toml`.
 
 ---
 

@@ -16,11 +16,7 @@ fastapi-users via `UserManager.validate_password`.
 
 ## Installation
 
-```bash
-pip install password-strength
-```
-
-Already included in `requirements.txt`.
+Run `uv sync` — `password-strength` is already in `pyproject.toml`.
 
 ---
 

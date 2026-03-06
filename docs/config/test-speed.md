@@ -6,7 +6,7 @@ Notes on how we increased pytest suite speed.
 
 ## Dependencies
 
-From [requirements.txt](../../requirements.txt):
+From [pyproject.toml](../../pyproject.toml):
 
 | Package | Purpose |
 |---------|---------|
@@ -15,7 +15,7 @@ From [requirements.txt](../../requirements.txt):
 | `pytest-xdist` | Parallel execution (`-n auto`) |
 
 ```shell
-pip install -r requirements.txt
+uv sync
 ```
 
 ---
@@ -74,7 +74,7 @@ async def db_session(test_engine):
 
 ## 2. pytest-xdist (Parallel Execution)
 
-**Install:** `pytest-xdist` is in [requirements.txt](../../requirements.txt).
+**Install:** `pytest-xdist` is in [pyproject.toml](../../pyproject.toml).
 
 **Usage:**
 ```shell

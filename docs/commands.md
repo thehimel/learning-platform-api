@@ -3,7 +3,7 @@
 ## Management
 
 ```shell
-uvicorn app.main:app --reload
+uv run uvicorn app.main:app --reload
 ```
 
 ### Health check
@@ -243,6 +243,5 @@ openssl rand -hex 32
 ## Install Dependencies
 
 ```shell
-# Install all project dependencies
-pip install -r requirements.txt
+uv sync
 ```

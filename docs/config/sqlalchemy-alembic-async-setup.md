@@ -20,7 +20,7 @@ This guide covers setting up **async** SQLAlchemy with Alembic using `asyncpg` a
 
 ## Step 1 — Update Dependencies
 
-### `requirements.txt`
+### `pyproject.toml`
 
 Replace `psycopg2-binary` with `asyncpg`. The full updated file:
 
@@ -37,18 +37,13 @@ ruff
 sqlalchemy
 ```
 
-Install into the virtual environment:
+Install:
 
 ```bash
-pip install asyncpg
-pip uninstall psycopg2-binary -y
+uv sync
 ```
 
-Or reinstall everything cleanly:
-
-```bash
-pip install -r requirements.txt
-```
+> Remove `psycopg2-binary` from `pyproject.toml` if present before running `uv sync`.
 
 ---
 
@@ -308,7 +303,7 @@ alembic/env.py
 
 ## Summary Checklist
 
-- [ ] Replace `psycopg2-binary` with `asyncpg` in `requirements.txt`
+- [ ] Replace `psycopg2-binary` with `asyncpg` in `pyproject.toml`
 - [ ] Create `app/database.py` using `create_async_engine` and `AsyncSession`
 - [ ] Create model(s) inheriting from `Base` (e.g. `app/courses/models.py`)
 - [ ] Run `alembic init alembic` (or manually recreate `alembic.ini` + `alembic/env.py`)

@@ -29,7 +29,7 @@
 
 ## Step 1 — Install
 
-Add to `requirements.txt`:
+Add to `pyproject.toml` dependencies:
 
 ```
 fastapi-users[sqlalchemy]
@@ -38,10 +38,10 @@ fastapi-users[sqlalchemy]
 Install:
 
 ```bash
-pip install "fastapi-users[sqlalchemy]"
+uv add "fastapi-users[sqlalchemy]"
 ```
 
-> `asyncpg` and `sqlalchemy[asyncio]` are already in `requirements.txt` — no additional driver install needed.
+> `asyncpg` and `sqlalchemy[asyncio]` are already in `pyproject.toml` — no additional driver install needed.
 
 ---
 
@@ -421,7 +421,7 @@ app/
 
 ## Summary Checklist
 
-- [ ] Add `fastapi-users[sqlalchemy]` to `requirements.txt` and install
+- [ ] Add `fastapi-users[sqlalchemy]` to `pyproject.toml` and run `uv sync`
 - [ ] Add `AUTH_RESET_PASSWORD_TOKEN_SECRET` and `AUTH_VERIFICATION_TOKEN_SECRET` to `.env`, `.env.example`, and `app/config.py`
 - [ ] Create `app/users/models.py` with `User` model
 - [ ] Create `app/users/schemas.py` with `UserRead`, `UserCreate`, `UserUpdate`

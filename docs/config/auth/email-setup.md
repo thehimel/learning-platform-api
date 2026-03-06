@@ -6,7 +6,7 @@ Used for sending transactional emails such as email verification and password re
 
 ## Step 1 — Install
 
-Add to `requirements.txt`:
+Add to `pyproject.toml` dependencies:
 
 ```
 fastapi-mail
@@ -16,7 +16,7 @@ jinja2
 Install:
 
 ```bash
-pip install fastapi-mail jinja2
+uv add fastapi-mail jinja2
 ```
 
 > `jinja2` is needed for HTML email templates. `fastapi[all]` may already include it — check before adding.
@@ -255,7 +255,7 @@ app/
 
 ## Summary Checklist
 
-- [ ] Add `fastapi-mail` and `jinja2` to `requirements.txt` and install
+- [ ] Add `fastapi-mail` and `jinja2` to `pyproject.toml` and run `uv sync`
 - [ ] Add email settings to `app/config.py` and `Settings`
 - [ ] Add `MAIL_*` and `APP_BASE_URL` vars to `.env` and `.env.example`
 - [ ] Create `app/email/config.py` with `ConnectionConfig`

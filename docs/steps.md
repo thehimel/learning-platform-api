@@ -28,3 +28,8 @@ Setup guide: [sqlalchemy-alembic-async-setup.md](config/sqlalchemy-alembic-async
 - [feat: enhance authentication security and user management logging](https://github.com/thehimel/learning-platform-api/commit/4878909d09d6fb2b9bd303de15c564f02a9992d0)
 - [feat: implement rate limiting using SlowAPI middleware](https://github.com/thehimel/learning-platform-api/commit/50cfb622eda72b494cc49bd16bea6c9645f9d94c)
 - [refactor: update JWT access token expiration time to 1 day](https://github.com/thehimel/learning-platform-api/commit/14f22b7b32ba3fd2af1304d33ef9819f2fc915ff)
+
+## Deploy to Production
+
+- [chore: migrate from pip to uv for dependency management](https://github.com/thehimel/learning-platform-api/commit/5dc339b58e92dcccfd2e9755de4d547c6d9a448e)
+- [chore: add Vercel build script for Alembic migrations](https://github.com/thehimel/learning-platform-api/commit/74f2442d2f3bd551c07a5379f8748342fe847a6c)
