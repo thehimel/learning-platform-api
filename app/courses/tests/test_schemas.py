@@ -93,12 +93,14 @@ class TestCourseCreate:
 
     def test_escape_html_on_title_and_description(self):
         """Title and description are HTML-escaped for XSS mitigation."""
-        payload = CourseCreate.model_validate({
-            "title": "Test & <b>bold</b>",
-            "description": "A & B",
-            "add_me_as_instructor": True,
-            "instructor_ids": [],
-        })
+        payload = CourseCreate.model_validate(
+            {
+                "title": "Test & <b>bold</b>",
+                "description": "A & B",
+                "add_me_as_instructor": True,
+                "instructor_ids": [],
+            }
+        )
         assert payload.title == "Test &amp; &lt;b&gt;bold&lt;/b&gt;"
         assert payload.description == "A &amp; B"
 
@@ -123,9 +125,11 @@ class TestCourseUpdate:
 
     def test_escape_html_on_title_and_description(self):
         """Title and description are HTML-escaped for XSS mitigation."""
-        payload = CourseUpdate.model_validate({
-            "title": "<script>alert(1)</script>",
-            "description": "A & B < C",
-        })
+        payload = CourseUpdate.model_validate(
+            {
+                "title": "<script>alert(1)</script>",
+                "description": "A & B < C",
+            }
+        )
         assert payload.title == "&lt;script&gt;alert(1)&lt;/script&gt;"
         assert payload.description == "A &amp; B &lt; C"

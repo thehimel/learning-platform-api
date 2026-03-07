@@ -82,4 +82,3 @@ class TestUsersAdminAPI:
         assert response.status_code == 403
         data = response.json()
         assert data["detail"]["code"] == "cannot_delete_self"
-

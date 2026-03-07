@@ -33,11 +33,20 @@ class TestUnauthenticatedAccess:
             ("delete", "courses_unenroll", None),
             ("post", "courses_rate", {"rating": 4.5}),
         ],
-        ids=["get_me", "patch_me", "get_user", "patch_user", "delete_user", "create_course", "update_course", "enroll", "unenroll", "rate"],
+        ids=[
+            "get_me",
+            "patch_me",
+            "get_user",
+            "patch_user",
+            "delete_user",
+            "create_course",
+            "update_course",
+            "enroll",
+            "unenroll",
+            "rate",
+        ],
     )
-    async def test_protected_routes_return_401_without_token(
-        self, client_e2e, routes, method, route_attr, payload
-    ):
+    async def test_protected_routes_return_401_without_token(self, client_e2e, routes, method, route_attr, payload):
         """Protected routes return 401 when no Bearer token is provided."""
         route_fn = getattr(routes, route_attr)
         if "by_id" in route_attr:
@@ -158,9 +167,7 @@ class TestInputInjection:
     """SQL injection and XSS payloads are handled safely (stored as data, not executed)."""
 
     @pytest.mark.asyncio
-    async def test_sql_injection_in_course_title_stored_safely(
-        self, client_e2e, instructor_e2e, routes
-    ):
+    async def test_sql_injection_in_course_title_stored_safely(self, client_e2e, instructor_e2e, routes):
         """Course title with SQL-like payload is stored as string, not executed."""
         _, token = instructor_e2e
 
@@ -180,9 +187,7 @@ class TestInputInjection:
         assert data["title"] == "&#x27;; DROP TABLE users; --"
 
     @pytest.mark.asyncio
-    async def test_xss_payload_in_course_title_stored_safely(
-        self, client_e2e, instructor_e2e, routes
-    ):
+    async def test_xss_payload_in_course_title_stored_safely(self, client_e2e, instructor_e2e, routes):
         """Course title with XSS payload is stored as string, not executed."""
         _, token = instructor_e2e
 

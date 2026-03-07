@@ -86,8 +86,7 @@ async def _drop_test_db() -> None:
 
     sys_conn = await asyncpg.connect(database="template1", **conn_params)
     await sys_conn.execute(
-        "SELECT pg_terminate_backend(pid) FROM pg_stat_activity "
-        "WHERE datname = $1 AND pid <> pg_backend_pid()",
+        "SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = $1 AND pid <> pg_backend_pid()",
         test_db,
     )
     await sys_conn.execute(f'DROP DATABASE IF EXISTS "{test_db}"')
@@ -114,9 +113,11 @@ def pytest_sessionfinish(session, exitstatus):
     if session.config.getoption("--drop-test-db", default=False):
         asyncio.run(_drop_test_db())
 
+
 @pytest.fixture
 def routes():
     """API paths via app.url_path_for — app defines paths, tests stay in sync."""
+
     def users_by_id(user_id: uuid.UUID) -> str:
         return app.url_path_for(UserRouteName.users_get_by_id, id=user_id)
 

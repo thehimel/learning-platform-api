@@ -216,9 +216,7 @@ class TestE2EInstructorFlow:
         assert course2["rating"] == 5.0
 
     @pytest.mark.asyncio
-    async def test_get_courses_filter_by_title_and_published(
-        self, client_e2e, instructor_e2e, admin_e2e, routes
-    ):
+    async def test_get_courses_filter_by_title_and_published(self, client_e2e, instructor_e2e, admin_e2e, routes):
         """E2E: Instructor creates courses; admin filters by q and published."""
         _, instructor_token = instructor_e2e
         _, admin_token = admin_e2e

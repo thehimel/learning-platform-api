@@ -28,9 +28,7 @@ from app.courses.schemas import (
 from app.users.models import User, UserRole
 
 # Eager load options for Course → instructors → user. enrolled_count via column_property (no enrollments load).
-_COURSE_LOAD_OPTIONS = (
-    selectinload(Course.instructors).selectinload(CourseInstructor.user),
-)
+_COURSE_LOAD_OPTIONS = (selectinload(Course.instructors).selectinload(CourseInstructor.user),)
 
 
 async def get_course(id: int, session: AsyncSession, current_user: User | None = None) -> Course:
@@ -43,11 +41,7 @@ async def get_course(id: int, session: AsyncSession, current_user: User | None =
     Raises:
         CourseNotFoundError: if course does not exist or is unpublished and user lacks access
     """
-    stmt = (
-        select(Course)
-        .where(Course.id == id)
-        .options(*_COURSE_LOAD_OPTIONS)
-    )
+    stmt = select(Course).where(Course.id == id).options(*_COURSE_LOAD_OPTIONS)
     result = await session.execute(stmt)
     course = result.scalars().unique().one_or_none()
     if course is None:
@@ -89,9 +83,7 @@ async def get_courses(
     if current_user is not None and current_user.role == UserRole.admin:
         pass
     elif current_user is not None and current_user.role == UserRole.instructor:
-        instructor_course_ids = select(CourseInstructor.course_id).where(
-            CourseInstructor.user_id == current_user.id
-        )
+        instructor_course_ids = select(CourseInstructor.course_id).where(CourseInstructor.user_id == current_user.id)
         conditions.append(or_(Course.published, Course.id.in_(instructor_course_ids)))
     else:
         conditions.append(Course.published)
@@ -101,11 +93,7 @@ async def get_courses(
     if q is not None and q.strip():
         conditions.append(Course.title.ilike(f"%{q.strip()}%"))
 
-    base_stmt = (
-        select(Course)
-        .options(*_COURSE_LOAD_OPTIONS)
-        .order_by(Course.created_at.desc(), Course.id.desc())
-    )
+    base_stmt = select(Course).options(*_COURSE_LOAD_OPTIONS).order_by(Course.created_at.desc(), Course.id.desc())
     count_stmt = select(func.count()).select_from(Course)
     if conditions:
         where_clause = and_(*conditions)
@@ -213,10 +201,12 @@ async def update_course(
         await session.execute(delete(CourseInstructor).where(CourseInstructor.course_id == id))
         if instructors:
             await session.execute(
-                insert(CourseInstructor).values([
-                    {"course_id": id, "user_id": instructor.id, "is_primary": index == 0}
-                    for index, instructor in enumerate(instructors)
-                ])
+                insert(CourseInstructor).values(
+                    [
+                        {"course_id": id, "user_id": instructor.id, "is_primary": index == 0}
+                        for index, instructor in enumerate(instructors)
+                    ]
+                )
             )
 
     # Fetch updated course in same transaction (sees uncommitted changes).
@@ -384,16 +374,12 @@ async def recompute_course_rating(course_id: int, session: AsyncSession | None =
         avg_stmt = select(func.avg(CourseRating.rating)).where(CourseRating.course_id == course_id)
         avg_result = await session.execute(avg_stmt)
         avg_rating = avg_result.scalar_one_or_none()
-        await session.execute(
-            update(Course).where(Course.id == course_id).values(rating=avg_rating)
-        )
+        await session.execute(update(Course).where(Course.id == course_id).values(rating=avg_rating))
         await session.commit()
         return
     async with AsyncSessionLocal() as session:
         avg_stmt = select(func.avg(CourseRating.rating)).where(CourseRating.course_id == course_id)
         avg_result = await session.execute(avg_stmt)
         avg_rating = avg_result.scalar_one_or_none()
-        await session.execute(
-            update(Course).where(Course.id == course_id).values(rating=avg_rating)
-        )
+        await session.execute(update(Course).where(Course.id == course_id).values(rating=avg_rating))
         await session.commit()

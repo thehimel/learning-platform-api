@@ -92,15 +92,11 @@ class TestGetCoursesService:
             await create_course_service(payload, test_admin, db_session)
         await db_session.commit()
 
-        courses_pub, total_pub = await get_courses(
-            db_session, current_user=test_admin, published=True
-        )
+        courses_pub, total_pub = await get_courses(db_session, current_user=test_admin, published=True)
         assert total_pub == 1
         assert courses_pub[0].title == "Pub"
 
-        courses_unpub, total_unpub = await get_courses(
-            db_session, current_user=test_admin, published=False
-        )
+        courses_unpub, total_unpub = await get_courses(db_session, current_user=test_admin, published=False)
         assert total_unpub == 1
         assert courses_unpub[0].title == "Unpub"
 
@@ -121,16 +117,12 @@ class TestGetCoursesService:
             await create_course_service(payload, test_instructor, db_session)
         await db_session.commit()
 
-        courses, total = await get_courses(
-            db_session, current_user=None, q="python"
-        )
+        courses, total = await get_courses(db_session, current_user=None, q="python")
         assert total == 2
         titles = {c.title for c in courses}
         assert titles == {"Python Basics", "Advanced Python"}
 
-        courses_js, total_js = await get_courses(
-            db_session, current_user=None, q="JAVASCRIPT"
-        )
+        courses_js, total_js = await get_courses(db_session, current_user=None, q="JAVASCRIPT")
         assert total_js == 1
         assert courses_js[0].title == "JavaScript 101"
 
@@ -151,9 +143,7 @@ class TestGetCoursesService:
             await create_course_service(payload, test_instructor, db_session)
         await db_session.commit()
 
-        courses, total = await get_courses(
-            db_session, current_user=None, limit=2, offset=1
-        )
+        courses, total = await get_courses(db_session, current_user=None, limit=2, offset=1)
         assert total == 5
         assert len(courses) == 2
         assert courses[0].title == "Course 3"

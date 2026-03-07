@@ -94,9 +94,7 @@ class TestUpdateCourseAPI:
         assert response.json()["detail"]["code"] == "course_not_found"
 
     @pytest.mark.asyncio
-    async def test_update_course_invalid_instructor_ids_returns_400(
-        self, client, test_instructor, routes
-    ):
+    async def test_update_course_invalid_instructor_ids_returns_400(self, client, test_instructor, routes):
         """Invalid instructor_ids returns 400."""
         create_resp = await client.post(
             routes.courses_create,
@@ -114,9 +112,7 @@ class TestUpdateCourseAPI:
         assert response.json()["detail"]["code"] == "invalid_instructor_ids"
 
     @pytest.mark.asyncio
-    async def test_update_course_empty_instructor_ids_returns_400(
-        self, client, test_instructor, routes
-    ):
+    async def test_update_course_empty_instructor_ids_returns_400(self, client, test_instructor, routes):
         """Empty instructor_ids returns 400 with cannot_remove_last_instructor."""
         create_resp = await client.post(
             routes.courses_create,

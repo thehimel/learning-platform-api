@@ -8,7 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.courses.errors import CannotRemoveLastInstructorError, TooManyInstructorsError
 from app.courses.schemas import CourseCreate, CourseUpdate, MAX_INSTRUCTORS_PER_COURSE
 from app.courses.service import create_course, update_course
-from app.users.models import User, UserRole
+from app.users.models import User
 
 
 class TestUpdateCourseServiceExceptions:

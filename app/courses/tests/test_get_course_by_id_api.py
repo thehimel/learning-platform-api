@@ -101,9 +101,7 @@ class TestGetCourseByIdAPI:
         assert response.json()["title"] == "Public Course"
 
     @pytest.mark.asyncio
-    async def test_get_course_unpublished_returns_404_without_auth(
-        self, client_e2e, instructor_e2e, routes
-    ):
+    async def test_get_course_unpublished_returns_404_without_auth(self, client_e2e, instructor_e2e, routes):
         """Unpublished courses return 404 for unauthenticated requests (IDOR prevention)."""
         _, instructor_token = instructor_e2e
         create_resp = await client_e2e.post(
@@ -120,9 +118,7 @@ class TestGetCourseByIdAPI:
         assert response.json()["detail"]["code"] == "course_not_found"
 
     @pytest.mark.asyncio
-    async def test_get_course_unpublished_returns_200_for_instructor(
-        self, client, routes
-    ):
+    async def test_get_course_unpublished_returns_200_for_instructor(self, client, routes):
         """Instructors can access their own unpublished courses."""
         create_resp = await client.post(
             routes.courses_create,
