@@ -1,7 +1,7 @@
 services:
   postgres:
     image: postgres:17
-    container_name: ${POSTGRES_NAME:-postgres}
+    container_name: ${PROJECT_NAME:-core}-postgres
     restart: unless-stopped
     environment:
       POSTGRES_USER: ${POSTGRES_USER}
@@ -17,13 +17,13 @@ services:
 
   api:
     build: .
-    container_name: learning-platform-api
+    container_name: ${PROJECT_NAME:-core}-api
     restart: unless-stopped
     depends_on:
       postgres:
         condition: service_healthy
     ports:
-      - "80:8000"
+      - "${API_PORT:-80}:8000"
     environment:
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
@@ -31,6 +31,8 @@ services:
       POSTGRES_PORT: 5432
       POSTGRES_DB: ${POSTGRES_DB}
       JWT_SECRET_KEY: ${JWT_SECRET_KEY}
+      AUTH_RESET_PASSWORD_TOKEN_SECRET: ${AUTH_RESET_PASSWORD_TOKEN_SECRET}
+      AUTH_VERIFICATION_TOKEN_SECRET: ${AUTH_VERIFICATION_TOKEN_SECRET}
       JWT_ALGORITHM: ${JWT_ALGORITHM:-HS256}
       JWT_ACCESS_TOKEN_EXPIRE_MINUTES: ${JWT_ACCESS_TOKEN_EXPIRE_MINUTES:-30}
       CORS_ORIGINS: ${CORS_ORIGINS}
