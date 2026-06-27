@@ -110,8 +110,22 @@ Unit, integration, E2E, security, and smoke tests. See [docs/questions/test-type
 
 ## Documentation
 
-- [Conventions](docs/conventions.md) — Coding standards
-- [Commands](docs/commands.md) — Docker, Alembic, pytest, ruff
-- [DB setup](docs/config/sqlalchemy-alembic-async-setup.md) — Alembic async
-- [Auth setup](docs/config/auth/fastapi-users-setup.md) — fastapi-users
-- [Test types](docs/questions/test-types.md) — Unit, integration, E2E
+- [Conventions](docs/conventions.md) - Coding standards
+- [Commands](docs/commands.md) - Docker, Alembic, pytest, ruff
+- [DB setup](docs/config/sqlalchemy-alembic-async-setup.md) - Alembic async
+- [Auth setup](docs/config/auth/fastapi-users-setup.md) - fastapi-users
+- [Test types](docs/questions/test-types.md) - Unit, integration, E2E
+
+### System Diagram
+
+![diagram.png](assets/diagram.png)
+
+Generated with [GitDiagram](https://gitdiagram.com/)
+
+### Wiki
+
+Explore the [detailed documentation](https://deepwiki.com/thehimel/learning-platform-api) for this project.
+
+![wiki.png](assets/wiki.png)
+
+Generated with [DeepWiki](https://deepwiki.com/)
