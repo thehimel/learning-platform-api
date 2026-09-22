@@ -3,6 +3,7 @@
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.courses.repository import CourseRepository
 from app.courses.schemas import CourseCreate
 from app.courses.service import create_course as create_course_service, get_courses
 from app.users.models import User
@@ -15,6 +16,7 @@ class TestGetCoursesService:
     async def test_returns_published_only_for_unauthenticated(
         self,
         db_session: AsyncSession,
+        course_repository: CourseRepository,
         test_instructor: User,
     ):
         """Unauthenticated user sees only published courses."""
@@ -25,10 +27,10 @@ class TestGetCoursesService:
                 instructor_ids=[],
                 published=published,
             )
-            await create_course_service(payload, test_instructor, db_session)
+            await create_course_service(payload, test_instructor, course_repository)
         await db_session.commit()
 
-        courses, total = await get_courses(db_session, current_user=None)
+        courses, total = await get_courses(course_repository, current_user=None)
         assert total == 1
         assert courses[0].title == "Pub"
 
@@ -36,6 +38,7 @@ class TestGetCoursesService:
     async def test_admin_sees_all_courses(
         self,
         db_session: AsyncSession,
+        course_repository: CourseRepository,
         test_instructor: User,
         test_admin: User,
     ):
@@ -47,10 +50,10 @@ class TestGetCoursesService:
                 instructor_ids=[],
                 published=published,
             )
-            await create_course_service(payload, test_instructor, db_session)
+            await create_course_service(payload, test_instructor, course_repository)
         await db_session.commit()
 
-        courses, total = await get_courses(db_session, current_user=test_admin)
+        courses, total = await get_courses(course_repository, current_user=test_admin)
         assert total == 2
         titles = {c.title for c in courses}
         assert titles == {"Pub", "Unpub"}
@@ -59,6 +62,7 @@ class TestGetCoursesService:
     async def test_instructor_sees_own_unpublished(
         self,
         db_session: AsyncSession,
+        course_repository: CourseRepository,
         test_instructor: User,
     ):
         """Instructor sees published courses plus unpublished courses they instruct."""
@@ -68,10 +72,10 @@ class TestGetCoursesService:
             instructor_ids=[],
             published=False,
         )
-        await create_course_service(payload, test_instructor, db_session)
+        await create_course_service(payload, test_instructor, course_repository)
         await db_session.commit()
 
-        courses, total = await get_courses(db_session, current_user=test_instructor)
+        courses, total = await get_courses(course_repository, current_user=test_instructor)
         assert total == 1
         assert courses[0].title == "My Unpublished"
 
@@ -79,6 +83,7 @@ class TestGetCoursesService:
     async def test_filter_by_published(
         self,
         db_session: AsyncSession,
+        course_repository: CourseRepository,
         test_admin: User,
     ):
         """published filter restricts results."""
@@ -89,14 +94,14 @@ class TestGetCoursesService:
                 instructor_ids=[],
                 published=published,
             )
-            await create_course_service(payload, test_admin, db_session)
+            await create_course_service(payload, test_admin, course_repository)
         await db_session.commit()
 
-        courses_pub, total_pub = await get_courses(db_session, current_user=test_admin, published=True)
+        courses_pub, total_pub = await get_courses(course_repository, current_user=test_admin, published=True)
         assert total_pub == 1
         assert courses_pub[0].title == "Pub"
 
-        courses_unpub, total_unpub = await get_courses(db_session, current_user=test_admin, published=False)
+        courses_unpub, total_unpub = await get_courses(course_repository, current_user=test_admin, published=False)
         assert total_unpub == 1
         assert courses_unpub[0].title == "Unpub"
 
@@ -104,6 +109,7 @@ class TestGetCoursesService:
     async def test_filter_by_title_search(
         self,
         db_session: AsyncSession,
+        course_repository: CourseRepository,
         test_instructor: User,
     ):
         """q filter does case-insensitive partial match on title."""
@@ -114,15 +120,15 @@ class TestGetCoursesService:
                 instructor_ids=[],
                 published=True,
             )
-            await create_course_service(payload, test_instructor, db_session)
+            await create_course_service(payload, test_instructor, course_repository)
         await db_session.commit()
 
-        courses, total = await get_courses(db_session, current_user=None, q="python")
+        courses, total = await get_courses(course_repository, current_user=None, q="python")
         assert total == 2
         titles = {c.title for c in courses}
         assert titles == {"Python Basics", "Advanced Python"}
 
-        courses_js, total_js = await get_courses(db_session, current_user=None, q="JAVASCRIPT")
+        courses_js, total_js = await get_courses(course_repository, current_user=None, q="JAVASCRIPT")
         assert total_js == 1
         assert courses_js[0].title == "JavaScript 101"
 
@@ -130,6 +136,7 @@ class TestGetCoursesService:
     async def test_pagination(
         self,
         db_session: AsyncSession,
+        course_repository: CourseRepository,
         test_instructor: User,
     ):
         """limit and offset work correctly."""
@@ -140,10 +147,10 @@ class TestGetCoursesService:
                 instructor_ids=[],
                 published=True,
             )
-            await create_course_service(payload, test_instructor, db_session)
+            await create_course_service(payload, test_instructor, course_repository)
         await db_session.commit()
 
-        courses, total = await get_courses(db_session, current_user=None, limit=2, offset=1)
+        courses, total = await get_courses(course_repository, current_user=None, limit=2, offset=1)
         assert total == 5
         assert len(courses) == 2
         assert courses[0].title == "Course 3"

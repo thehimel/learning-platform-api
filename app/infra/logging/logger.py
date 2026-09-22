@@ -1,18 +1,19 @@
 import logging
 import sys
 
+from app.infra.logging.constants import LOG_DATE_FORMAT, LOG_FORMAT, QUIET_LOGGER_NAMES
+
 
 def configure_logging() -> None:
     """Configure root logging once at application startup."""
     logging.basicConfig(
         level=logging.INFO,
-        format="%(asctime)s | %(levelname)-8s | %(name)s | %(message)s",
-        datefmt="%Y-%m-%d %H:%M:%S",
+        format=LOG_FORMAT,
+        datefmt=LOG_DATE_FORMAT,
         stream=sys.stdout,
     )
-    # Silence noisy third-party loggers
-    logging.getLogger("uvicorn.access").setLevel(logging.WARNING)
-    logging.getLogger("sqlalchemy.engine").setLevel(logging.WARNING)
+    for logger_name in QUIET_LOGGER_NAMES:
+        logging.getLogger(logger_name).setLevel(logging.WARNING)
 
 
 def get_logger(name: str) -> logging.Logger:

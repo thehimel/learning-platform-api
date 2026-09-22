@@ -3,15 +3,15 @@ import uuid
 from fastapi import APIRouter, Depends, status
 
 from app.auth.backend import current_active_user, current_admin
+from app.users.constants import RouteName
 from app.users.errors import CannotDeleteSelfError
 from app.users.manager import UserManager, get_user_manager
 from app.users.models import User
-from app.users.routes import RouteName
 from app.users.schemas import UserAdminUpdate, UserRead, UserUpdate
 
 router = APIRouter()
 
-# Sub-router for admin-only /{id} routes — current_admin applied to all at once.
+# Groups admin-only routes so the dependency applies once, not per route.
 admin_router = APIRouter(dependencies=[Depends(current_admin)])
 
 
@@ -59,6 +59,5 @@ async def delete_user(
     await user_manager.delete(user)
 
 
-# Must stay at the bottom — include_router copies routes registered on admin_router at call time.
-# Merged here so api/router.py only needs to import one object.
+# Must stay at the bottom: include_router copies registered routes at call time.
 router.include_router(admin_router)

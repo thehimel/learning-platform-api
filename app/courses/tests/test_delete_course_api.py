@@ -3,6 +3,7 @@
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.courses.repository import CourseRepository
 from app.courses.schemas import CourseCreate
 from app.courses.service import create_course as create_course_service
 
@@ -28,6 +29,7 @@ class TestDeleteCourseAPI:
         client,
         client_admin,
         db_session: AsyncSession,
+        course_repository: CourseRepository,
         test_admin,
         routes,
     ):
@@ -40,7 +42,7 @@ class TestDeleteCourseAPI:
             course_id = create_resp.json()["id"]
         else:
             payload = CourseCreate(**_CREATE_PAYLOAD, published=False)
-            course = await create_course_service(payload, test_admin, db_session)
+            course = await create_course_service(payload, test_admin, course_repository)
             await db_session.commit()
             course_id = course.id
 
@@ -66,6 +68,7 @@ class TestDeleteCourseAPI:
         expected_code,
         client,
         db_session: AsyncSession,
+        course_repository: CourseRepository,
         test_admin,
         routes,
     ):
@@ -74,7 +77,7 @@ class TestDeleteCourseAPI:
             course_id = 99999
         else:
             payload = CourseCreate(**_CREATE_PAYLOAD, published=False)
-            course = await create_course_service(payload, test_admin, db_session)
+            course = await create_course_service(payload, test_admin, course_repository)
             await db_session.commit()
             course_id = course.id
 

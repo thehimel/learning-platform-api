@@ -15,35 +15,35 @@ import pytest
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.pool import NullPool
 
-# Run rate_course recompute inline in tests (avoids BackgroundTasks + pytest event loop issues)
+# Avoids BackgroundTasks event loop issues in tests.
 os.environ.setdefault("RATING_RECOMPUTE_ASYNC", "false")
-# Disable rate limiting in tests to avoid 429 when many requests hit the same IP
+# Avoids 429s when many test requests share an IP.
 os.environ.setdefault("RATE_LIMIT_ENABLED", "false")
 
 from app.auth.backend import current_active_user, current_admin, current_instructor, current_user_optional
-from app.auth.routes import RouteName as AuthRouteName
-from app.courses.routes import RouteName as CourseRouteName
-from app.database import get_db
+from app.auth.constants import RouteName as AuthRouteName
+from app.courses.constants import RouteName as CourseRouteName
+from app.infra.database import get_db
 from app.main import app
+from app.users.constants import RouteName as UserRouteName
 from app.users.models import User, UserRole
-from app.users.routes import RouteName as UserRouteName
 
 
-# Base URL for ASGI test client — host is ignored; requests go to app via ASGITransport.
+# Ignored; ASGITransport never makes a real network call.
 TEST_CLIENT_BASE_URL = "http://test.server"
 
 _log = logging.getLogger(__name__)
 
 
 def _get_test_db_name() -> str:
-    from app.config import settings
+    from app.infra.config import settings
 
     return settings.postgres_db_test or f"{settings.postgres_db}_test"
 
 
 async def _ensure_test_db() -> None:
     """Create test database if it does not exist, then run migrations."""
-    from app.config import settings
+    from app.infra.config import settings
 
     test_db = _get_test_db_name()
     conn_params = {
@@ -74,7 +74,7 @@ async def _ensure_test_db() -> None:
 
 async def _drop_test_db() -> None:
     """Drop the test database after all tests (terminates connections first)."""
-    from app.config import settings
+    from app.infra.config import settings
 
     test_db = _get_test_db_name()
     conn_params = {
@@ -166,7 +166,7 @@ def routes():
 
 def _get_test_db_url() -> str:
     """Use a separate test database to avoid affecting development data."""
-    from app.config import settings
+    from app.infra.config import settings
 
     test_db = settings.postgres_db_test or f"{settings.postgres_db}_test"
     return (
@@ -189,8 +189,7 @@ def test_engine():
 
 @pytest.fixture
 async def db_session(test_engine):
-    """
-    Provide an async DB session with transaction rollback for isolation.
+    """Provide an async DB session with transaction rollback for isolation.
 
     Uses a separate test DB ({postgres_db}_test) to avoid affecting development data.
     NullPool + join_transaction_mode='create_savepoint' so app commits are rolled back.
@@ -304,8 +303,7 @@ async def client_admin(db_session, test_admin):
 
 @pytest.fixture
 async def client(db_session, test_instructor):
-    """
-    Async HTTP client with overridden get_db, current_active_user, and current_instructor.
+    """Async HTTP client with overridden get_db, current_active_user, and current_instructor.
 
     Uses httpx.AsyncClient so the request runs in the same event loop as fixtures,
     avoiding "attached to a different loop" errors with the async DB session.
@@ -361,8 +359,7 @@ async def client_unauthenticated(db_session):
 
 @pytest.fixture
 async def client_e2e(db_session):
-    """
-    E2E HTTP client — only get_db overridden (test DB); auth uses real register/login.
+    """E2E HTTP client — only get_db overridden (test DB); auth uses real register/login.
     Use for end-to-end tests that exercise the full auth flow.
     """
 

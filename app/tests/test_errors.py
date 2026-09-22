@@ -1,9 +1,9 @@
-"""Unit tests for app.exceptions."""
+"""Unit tests for app.infra.common.errors."""
 
 import pytest
 
 from app.courses.errors import CourseErrorCode
-from app.exceptions import error_detail
+from app.infra.common.errors import error_detail
 from app.users.errors import UserErrorCode
 
 

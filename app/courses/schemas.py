@@ -5,15 +5,36 @@ from typing import Annotated, Any
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
-MAX_INSTRUCTORS_PER_COURSE = 10
-MAX_DESCRIPTION_LENGTH = 5000
-DEFAULT_PAGE_SIZE = 20
-MAX_PAGE_SIZE = 100
+from app.courses.constants import (
+    AT_LEAST_ONE_INSTRUCTOR_REQUIRED_MESSAGE,
+    MAX_DESCRIPTION_LENGTH,
+    MAX_INSTRUCTORS_PER_COURSE,
+    RATING_DECIMAL_PLACES,
+    RATING_MAX,
+    RATING_MIN,
+    TITLE_MAX_LENGTH,
+    TOO_MANY_INSTRUCTORS_TOTAL_MESSAGE,
+)
 
 
 def _escape_html(value: str | None) -> str | None:
     """Escape HTML entities to mitigate XSS when content is rendered in HTML."""
     return html.escape(value) if value is not None else None
+
+
+def _dedupe_instructor_ids(data: object) -> object:
+    """Deduplicate instructor_ids in place, preserving order, when present on a dict payload."""
+    if isinstance(data, dict) and data.get("instructor_ids"):
+        data["instructor_ids"] = list(dict.fromkeys(data["instructor_ids"]))
+    return data
+
+
+def _escape_html_fields(model: BaseModel, *field_names: str) -> None:
+    """Escape the given string fields on a frozen model in place for safe HTML rendering."""
+    for field_name in field_names:
+        value = getattr(model, field_name)
+        if value is not None:
+            object.__setattr__(model, field_name, _escape_html(value))
 
 
 class CourseInstructorRead(BaseModel):
@@ -60,17 +81,16 @@ class RatingRead(BaseModel):
 class CourseRate(BaseModel):
     """Schema for rating a course (1–5, one decimal)."""
 
-    rating: Annotated[float, Field(ge=1, le=5, description="Rating from 1 to 5 (e.g. 2.5)")]
+    rating: Annotated[float, Field(ge=RATING_MIN, le=RATING_MAX, description="Rating from 1 to 5 (e.g. 2.5)")]
 
     @model_validator(mode="after")
     def round_to_one_decimal(self) -> "CourseRate":
-        self.rating = round(self.rating, 1)
+        self.rating = round(self.rating, RATING_DECIMAL_PLACES)
         return self
 
 
 class CourseUpdate(BaseModel):
-    """
-    Schema for updating a course (partial — all fields optional).
+    """Schema for updating a course (partial — all fields optional).
 
     Intentionally limited to title, description, published, and instructor_ids.
     Sensitive fields (e.g. rating, created_at, internal flags) are omitted to prevent
@@ -79,7 +99,7 @@ class CourseUpdate(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
-    title: Annotated[str | None, Field(default=None, min_length=1, max_length=500)] = None
+    title: Annotated[str | None, Field(default=None, min_length=1, max_length=TITLE_MAX_LENGTH)] = None
     description: Annotated[str | None, Field(default=None, max_length=MAX_DESCRIPTION_LENGTH)] = None
     published: bool | None = None
     instructor_ids: list[uuid.UUID] | None = Field(
@@ -91,24 +111,19 @@ class CourseUpdate(BaseModel):
     @model_validator(mode="before")
     @classmethod
     def ensure_unique_instructor_ids(cls, data: object) -> object:
-        if isinstance(data, dict) and data.get("instructor_ids"):
-            data["instructor_ids"] = list(dict.fromkeys(data["instructor_ids"]))
-        return data
+        return _dedupe_instructor_ids(data)
 
     @model_validator(mode="after")
     def escape_html_fields(self) -> "CourseUpdate":
         """Escape title and description for safe HTML rendering."""
-        if self.title is not None:
-            object.__setattr__(self, "title", _escape_html(self.title))
-        if self.description is not None:
-            object.__setattr__(self, "description", _escape_html(self.description))
+        _escape_html_fields(self, "title", "description")
         return self
 
 
 class CourseCreate(BaseModel):
     """Schema for creating a course."""
 
-    title: Annotated[str, Field(min_length=1, max_length=500)]
+    title: Annotated[str, Field(min_length=1, max_length=TITLE_MAX_LENGTH)]
     description: Annotated[str | None, Field(default=None, max_length=MAX_DESCRIPTION_LENGTH)] = None
     add_me_as_instructor: bool = Field(
         default=True,
@@ -124,31 +139,23 @@ class CourseCreate(BaseModel):
     @model_validator(mode="after")
     def validate_instructors(self) -> "CourseCreate":
         if not self.add_me_as_instructor and not self.instructor_ids:
-            raise ValueError(
-                "At least one instructor required: set add_me_as_instructor=true or provide instructor_ids"
-            )
+            raise ValueError(AT_LEAST_ONE_INSTRUCTOR_REQUIRED_MESSAGE)
         max_others = MAX_INSTRUCTORS_PER_COURSE - 1 if self.add_me_as_instructor else MAX_INSTRUCTORS_PER_COURSE
         if len(self.instructor_ids) > max_others:
             raise ValueError(
-                f"At most {MAX_INSTRUCTORS_PER_COURSE} instructors total; provide at most {max_others} in instructor_ids"
+                TOO_MANY_INSTRUCTORS_TOTAL_MESSAGE.format(max_total=MAX_INSTRUCTORS_PER_COURSE, max_others=max_others)
             )
         return self
 
     @model_validator(mode="before")
     @classmethod
     def ensure_unique_instructor_ids(cls, data: object) -> object:
-        if isinstance(data, dict) and "instructor_ids" in data:
-            ids = data["instructor_ids"]
-            if ids:
-                data["instructor_ids"] = list(dict.fromkeys(ids))
-        return data
+        return _dedupe_instructor_ids(data)
 
     @model_validator(mode="after")
     def escape_html_fields(self) -> "CourseCreate":
         """Escape title and description for safe HTML rendering."""
-        object.__setattr__(self, "title", _escape_html(self.title))
-        if self.description is not None:
-            object.__setattr__(self, "description", _escape_html(self.description))
+        _escape_html_fields(self, "title", "description")
         return self
 
 

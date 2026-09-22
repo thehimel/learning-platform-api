@@ -74,7 +74,7 @@ class TestRateLimiting:
     @pytest.mark.asyncio
     async def test_login_rate_limit_returns_429(self, client_e2e, routes):
         """Exceeding rate limit on auth endpoint returns 429."""
-        # Use a stricter limit for this test to avoid 61 requests
+        # Stricter limit avoids needing 61 requests.
         strict_limiter = Limiter(
             key_func=get_remote_address,
             default_limits=["2/minute"],
@@ -83,7 +83,6 @@ class TestRateLimiting:
         app.state.limiter = strict_limiter
 
         try:
-            # First 2 requests get through (any non-429 = not rate limited yet)
             for _ in range(2):
                 r = await client_e2e.post(
                     routes.auth_login,
@@ -92,7 +91,6 @@ class TestRateLimiting:
                 )
                 assert r.status_code != 429
 
-            # 3rd request hits rate limit
             r = await client_e2e.post(
                 routes.auth_login,
                 data={"username": "a@b.com", "password": "wrong"},
@@ -183,7 +181,7 @@ class TestInputInjection:
         )
         assert response.status_code == 201
         data = response.json()
-        # Title is HTML-escaped before storage; single quote becomes &#x27;
+        # HTML-escaped before storage.
         assert data["title"] == "&#x27;; DROP TABLE users; --"
 
     @pytest.mark.asyncio
@@ -203,5 +201,5 @@ class TestInputInjection:
         )
         assert response.status_code == 201
         data = response.json()
-        # Title is HTML-escaped before storage to mitigate XSS
+        # HTML-escaped before storage.
         assert data["title"] == "&lt;script&gt;alert(1)&lt;/script&gt;"

@@ -1,8 +1,12 @@
 """API integration tests for GET/PATCH/DELETE /api/users/{id} (admin)."""
 
 import uuid
+from decimal import Decimal
 
 import pytest
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.courses.models import Course, CourseEnrollment, CourseInstructor, CourseRating
 
 
 class TestUsersAdminAPI:
@@ -65,6 +69,28 @@ class TestUsersAdminAPI:
         routes,
     ):
         """Admin DELETE /{id} returns 204 when user exists and is not self."""
+        response = await client_admin.delete(routes.users_by_id(test_instructor.id))
+
+        assert response.status_code == 204
+
+    @pytest.mark.asyncio
+    async def test_delete_user_with_course_associations_returns_204(
+        self,
+        client_admin,
+        db_session: AsyncSession,
+        test_instructor,
+        routes,
+    ):
+        """Admin DELETE /{id} succeeds when the user has course_instructors, enrollment, and rating rows."""
+        course = Course(title="Cascade Test Course", published=True)
+        db_session.add(course)
+        await db_session.flush()
+
+        db_session.add(CourseInstructor(course_id=course.id, user_id=test_instructor.id, is_primary=True))
+        db_session.add(CourseEnrollment(course_id=course.id, user_id=test_instructor.id))
+        db_session.add(CourseRating(course_id=course.id, user_id=test_instructor.id, rating=Decimal("4.0")))
+        await db_session.commit()
+
         response = await client_admin.delete(routes.users_by_id(test_instructor.id))
 
         assert response.status_code == 204

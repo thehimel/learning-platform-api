@@ -22,7 +22,6 @@ class TestE2EAuthFlow:
         email = f"e2e-{uuid.uuid4().hex[:8]}@test.example"
         password = "SecurePass1!"
 
-        # Register
         reg = await client_e2e.post(
             routes.auth_register,
             json={"email": email, "password": password},
@@ -30,10 +29,8 @@ class TestE2EAuthFlow:
         assert reg.status_code == 201
         user_id = reg.json()["id"]
 
-        # Login
         token = await e2e_login(client_e2e, email, password, routes.auth_login)
 
-        # GET /me
         me = await client_e2e.get(routes.users_me, headers=_auth_headers(token))
         assert me.status_code == 200
         data = me.json()
@@ -58,7 +55,6 @@ class TestE2EAuthFlow:
         )
         assert patch.status_code == 200
 
-        # Login with new password works
         token2 = await e2e_login(client_e2e, email, new_password, routes.auth_login)
         assert token2
 
@@ -137,7 +133,6 @@ class TestE2EInstructorFlow:
     @pytest.mark.asyncio
     async def test_student_enroll_and_unenroll(self, client_e2e, instructor_e2e, routes):
         """Student registers, logs in, enrolls in course, then unenrolls."""
-        # Instructor creates course
         _, instructor_token = instructor_e2e
         create_resp = await client_e2e.post(
             routes.courses_create,
@@ -147,13 +142,11 @@ class TestE2EInstructorFlow:
         assert create_resp.status_code == 201
         course_id = create_resp.json()["id"]
 
-        # Student registers and logs in
         email = f"e2e-student-{uuid.uuid4().hex[:8]}@test.example"
         password = "SecurePass1!"
         await client_e2e.post(routes.auth_register, json={"email": email, "password": password})
         student_token = await e2e_login(client_e2e, email, password, routes.auth_login)
 
-        # Student enrolls
         enroll_resp = await client_e2e.post(
             routes.courses_enroll(course_id),
             headers=_auth_headers(student_token),
@@ -161,12 +154,10 @@ class TestE2EInstructorFlow:
         assert enroll_resp.status_code == 201
         assert enroll_resp.json()["course_id"] == course_id
 
-        # Verify enrolled_count
         list_resp = await client_e2e.get(routes.courses_get)
         course = next(c for c in list_resp.json()["items"] if c["id"] == course_id)
         assert course["enrolled_count"] == 1
 
-        # Student unenrolls
         unenroll_resp = await client_e2e.delete(
             routes.courses_unenroll(course_id),
             headers=_auth_headers(student_token),

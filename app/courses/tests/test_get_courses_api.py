@@ -3,6 +3,7 @@
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.courses.repository import CourseRepository
 from app.courses.schemas import CourseCreate
 from app.courses.service import create_course as create_course_service
 
@@ -18,7 +19,6 @@ class TestGetCoursesVisibility:
         routes,
     ):
         """Unauthenticated GET /courses returns only published courses."""
-        # Create published and unpublished as instructor
         for title, published in [("Published", True), ("Unpublished", False)]:
             payload = {
                 "title": title,
@@ -29,7 +29,6 @@ class TestGetCoursesVisibility:
             resp = await client.post(routes.courses_create, json=payload)
             assert resp.status_code == 201
 
-        # Unauthenticated sees only published
         resp = await client_unauthenticated.get(routes.courses_get)
         assert resp.status_code == 200
         data = resp.json()
@@ -68,7 +67,6 @@ class TestGetCoursesVisibility:
         routes,
     ):
         """Admin GET /courses returns all courses including unpublished."""
-        # Create published and unpublished as instructor
         for title, published in [("Published", True), ("Unpublished", False)]:
             payload = {
                 "title": title,
@@ -79,7 +77,6 @@ class TestGetCoursesVisibility:
             resp = await client.post(routes.courses_create, json=payload)
             assert resp.status_code == 201
 
-        # Admin sees all
         resp = await client_admin.get(routes.courses_get)
         assert resp.status_code == 200
         data = resp.json()
@@ -92,21 +89,21 @@ class TestGetCoursesVisibility:
         self,
         client,
         db_session: AsyncSession,
+        course_repository: CourseRepository,
         test_admin,
         routes,
     ):
         """Instructor GET /courses does not return unpublished courses they do not instruct."""
-        # Create unpublished course via service with admin as instructor (not test_instructor)
+        # Admin is the instructor here, not test_instructor.
         payload = CourseCreate(
             title="Admin Unpublished",
             add_me_as_instructor=True,
             instructor_ids=[],
             published=False,
         )
-        await create_course_service(payload, test_admin, db_session)
+        await create_course_service(payload, test_admin, course_repository)
         await db_session.commit()
 
-        # Instructor (test_instructor) does not see admin's unpublished course
         resp = await client.get(routes.courses_get)
         assert resp.status_code == 200
         data = resp.json()
@@ -194,7 +191,6 @@ class TestGetCoursesAPI:
             }
             await client.post(routes.courses_create, json=payload)
 
-        # Default page
         resp = await client.get(routes.courses_get)
         assert resp.status_code == 200
         data = resp.json()
@@ -203,7 +199,6 @@ class TestGetCoursesAPI:
         assert data["limit"] == 20
         assert data["offset"] == 0
 
-        # limit=2, offset=0
         resp2 = await client.get(f"{routes.courses_get}?limit=2&offset=0")
         assert resp2.status_code == 200
         data2 = resp2.json()
@@ -214,7 +209,6 @@ class TestGetCoursesAPI:
         assert data2["items"][0]["title"] == "Course 4"
         assert data2["items"][1]["title"] == "Course 3"
 
-        # limit=2, offset=2
         resp3 = await client.get(f"{routes.courses_get}?limit=2&offset=2")
         assert resp3.status_code == 200
         data3 = resp3.json()

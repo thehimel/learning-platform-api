@@ -2,14 +2,8 @@ from uuid import UUID
 
 from decimal import Decimal
 
-from sqlalchemy import and_, delete, exists, func, or_, select, update
-from sqlalchemy.exc import IntegrityError
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import selectinload
-from sqlalchemy.dialects.postgresql import insert
-
+from app.courses.constants import DEFAULT_OFFSET, DEFAULT_PAGE_SIZE, MAX_INSTRUCTORS_PER_COURSE, RATING_DECIMAL_PLACES
 from app.courses.errors import (
-    AlreadyEnrolledError,
     CannotRemoveLastInstructorError,
     CourseNotFoundError,
     InvalidInstructorIdsError,
@@ -17,57 +11,56 @@ from app.courses.errors import (
     NotInstructorOfCourseError,
     TooManyInstructorsError,
 )
-from app.courses.models import Course, CourseEnrollment, CourseInstructor, CourseRating
-from app.database import AsyncSessionLocal
-from app.courses.schemas import (
-    CourseCreate,
-    CourseRate,
-    CourseUpdate,
-    MAX_INSTRUCTORS_PER_COURSE,
-)
+from app.courses.models import Course, CourseEnrollment, CourseRating
+from app.courses.repository import CourseRepository
+from app.courses.schemas import CourseCreate, CourseRate, CourseUpdate
 from app.users.models import User, UserRole
 
-# Eager load options for Course → instructors → user. enrolled_count via column_property (no enrollments load).
-_COURSE_LOAD_OPTIONS = (selectinload(Course.instructors).selectinload(CourseInstructor.user),)
+
+def _is_admin(user: User) -> bool:
+    return user.role == UserRole.admin
 
 
-async def get_course(id: int, session: AsyncSession, current_user: User | None = None) -> Course:
-    """
-    Fetch a single course by ID with instructors and enrolled count.
+async def _ensure_can_modify_course(repository: CourseRepository, course_id: int, current_user: User) -> None:
+    """Raise NotInstructorOfCourseError unless current_user is admin or an instructor of the course."""
+    if _is_admin(current_user):
+        return
+    if not await repository.is_instructor(course_id, current_user.id):
+        raise NotInstructorOfCourseError()
+
+
+async def get_course(id: int, repository: CourseRepository, current_user: User | None = None) -> Course:
+    """Fetch a single course by ID with instructors and enrolled count.
 
     Unpublished courses are only visible to instructors of the course or admins.
     Others receive CourseNotFoundError (avoids IDOR enumeration).
 
     Raises:
-        CourseNotFoundError: if course does not exist or is unpublished and user lacks access
+        CourseNotFoundError: If course does not exist or is unpublished and user lacks access.
     """
-    stmt = select(Course).where(Course.id == id).options(*_COURSE_LOAD_OPTIONS)
-    result = await session.execute(stmt)
-    course = result.scalars().unique().one_or_none()
+    course = await repository.get_by_id(id)
     if course is None:
         raise CourseNotFoundError()
 
     if not course.published:
         if current_user is None:
             raise CourseNotFoundError()
-        is_admin = current_user.role == UserRole.admin
         is_instructor = any(ci.user_id == current_user.id for ci in course.instructors)
-        if not is_admin and not is_instructor:
+        if not _is_admin(current_user) and not is_instructor:
             raise CourseNotFoundError()
 
     return course
 
 
 async def get_courses(
-    session: AsyncSession,
-    limit: int = 20,
-    offset: int = 0,
+    repository: CourseRepository,
+    limit: int = DEFAULT_PAGE_SIZE,
+    offset: int = DEFAULT_OFFSET,
     current_user: User | None = None,
     published: bool | None = None,
     q: str | None = None,
 ) -> tuple[list[Course], int]:
-    """
-    Get courses with pagination and optional filters.
+    """Get courses with pagination and optional filters.
 
     Unauthenticated: published only.
     Admin: all courses.
@@ -79,107 +72,63 @@ async def get_courses(
 
     Returns (courses, total_count). ORM objects; CourseRead auto-transforms.
     """
-    conditions = []
-    if current_user is not None and current_user.role == UserRole.admin:
-        pass
-    elif current_user is not None and current_user.role == UserRole.instructor:
-        instructor_course_ids = select(CourseInstructor.course_id).where(CourseInstructor.user_id == current_user.id)
-        conditions.append(or_(Course.published, Course.id.in_(instructor_course_ids)))
-    else:
-        conditions.append(Course.published)
-
-    if published is not None:
-        conditions.append(Course.published == published)
-    if q is not None and q.strip():
-        conditions.append(Course.title.ilike(f"%{q.strip()}%"))
-
-    base_stmt = select(Course).options(*_COURSE_LOAD_OPTIONS).order_by(Course.created_at.desc(), Course.id.desc())
-    count_stmt = select(func.count()).select_from(Course)
-    if conditions:
-        where_clause = and_(*conditions)
-        base_stmt = base_stmt.where(where_clause)
-        count_stmt = count_stmt.where(where_clause)
-
-    total_result = await session.execute(count_stmt)
-    total = total_result.scalar_one()
-
-    stmt = base_stmt.limit(limit).offset(offset)
-    result = await session.execute(stmt)
-    courses = list(result.scalars().unique().all())
-    return courses, total
+    include_all = current_user is not None and _is_admin(current_user)
+    own_instructor_id = (
+        current_user.id if current_user is not None and current_user.role == UserRole.instructor else None
+    )
+    return await repository.list_courses(
+        limit=limit,
+        offset=offset,
+        published=published,
+        q=q,
+        include_all=include_all,
+        own_instructor_id=own_instructor_id,
+    )
 
 
 async def create_course(
     payload: CourseCreate,
     current_user: User,
-    session: AsyncSession,
+    repository: CourseRepository,
 ) -> Course:
-    """
-    Create a course with one or more instructors.
+    """Create a course with one or more instructors.
 
     When add_me_as_instructor is True, current_user is added as an instructor.
     instructor_ids can add other instructors. At least one instructor required.
 
-    Raises InvalidInstructorIdsError if any instructor_ids are invalid or
-    do not have instructor/admin role.
+    Raises:
+        InvalidInstructorIdsError: If any instructor_ids are invalid or do not have instructor/admin role.
     """
     instructor_ids = _resolve_instructor_ids(payload, current_user.id)
-    instructors = await _validate_instructors(session, instructor_ids)
+    instructors = await _validate_instructors(repository, instructor_ids)
 
-    course = Course(
+    course = await repository.create_course(
         title=payload.title,
         description=payload.description,
         published=payload.published,
+        instructor_ids=[instructor.id for instructor in instructors],
     )
-    session.add(course)
-    await session.flush()
-
-    course_instructors = [
-        CourseInstructor(
-            course_id=course.id,
-            user_id=instructor.id,
-            is_primary=(index == 0),
-        )
-        for index, instructor in enumerate(instructors)
-    ]
-    session.add_all(course_instructors)
-    await session.commit()
-
-    # Re-fetch with relationships for auto-transform via CourseRead
-    stmt = select(Course).where(Course.id == course.id).options(*_COURSE_LOAD_OPTIONS)
-    result = await session.execute(stmt)
-    return result.scalars().one()
+    await repository.commit()
+    return course
 
 
 async def update_course(
     id: int,
     payload: CourseUpdate,
     current_user: User,
-    session: AsyncSession,
+    repository: CourseRepository,
 ) -> Course:
-    """
-    Update a course. User must be instructor of the course or admin.
+    """Update a course. User must be instructor of the course or admin.
 
     Raises:
-        CourseNotFoundError: if course does not exist
-        NotInstructorOfCourseError: if user is not instructor of course and not admin
-        InvalidInstructorIdsError: if instructor_ids are invalid when provided
+        CourseNotFoundError: If course does not exist.
+        NotInstructorOfCourseError: If user is not instructor of course and not admin.
+        InvalidInstructorIdsError: If instructor_ids are invalid when provided.
     """
-    if not await _course_exists(session, id):
+    if not await repository.exists(id):
         raise CourseNotFoundError()
 
-    is_admin = current_user.role == UserRole.admin
-    if not is_admin:
-        stmt = select(
-            exists().where(
-                CourseInstructor.course_id == id,
-                CourseInstructor.user_id == current_user.id,
-            )
-        )
-        result = await session.execute(stmt)
-        is_instructor_of_course = result.scalar_one()
-        if not is_instructor_of_course:
-            raise NotInstructorOfCourseError()
+    await _ensure_can_modify_course(repository, id, current_user)
 
     update_data: dict = {}
     if payload.title is not None:
@@ -190,66 +139,42 @@ async def update_course(
         update_data["published"] = payload.published
 
     if update_data:
-        await session.execute(update(Course).where(Course.id == id).values(**update_data))
+        await repository.update_fields(id, update_data)
 
     if payload.instructor_ids is not None:
         if len(payload.instructor_ids) > MAX_INSTRUCTORS_PER_COURSE:
             raise TooManyInstructorsError()
         if len(payload.instructor_ids) == 0:
             raise CannotRemoveLastInstructorError()
-        instructors = await _validate_instructors(session, payload.instructor_ids)
-        await session.execute(delete(CourseInstructor).where(CourseInstructor.course_id == id))
-        if instructors:
-            await session.execute(
-                insert(CourseInstructor).values(
-                    [
-                        {"course_id": id, "user_id": instructor.id, "is_primary": index == 0}
-                        for index, instructor in enumerate(instructors)
-                    ]
-                )
-            )
+        instructors = await _validate_instructors(repository, payload.instructor_ids)
+        await repository.replace_instructors(id, [instructor.id for instructor in instructors])
 
-    # Fetch updated course in same transaction (sees uncommitted changes).
-    # With expire_on_commit=False, we return this object without re-fetch after commit.
-    stmt = select(Course).where(Course.id == id).options(*_COURSE_LOAD_OPTIONS)
-    result = await session.execute(stmt)
-    course = result.scalars().unique().one()
-    await session.commit()
+    # Same transaction sees the uncommitted update; expire_on_commit=False skips a re-fetch after commit.
+    course = await repository.get_by_id(id)
+    await repository.commit()
     return course
 
 
 async def delete_course(
     id: int,
     current_user: User,
-    session: AsyncSession,
+    repository: CourseRepository,
 ) -> None:
-    """
-    Delete a course. Admin can delete any course; instructor can delete only if they instruct it.
+    """Delete a course. Admin can delete any course; instructor can delete only if they instruct it.
 
     Cascades to course_instructors, course_ratings, course_enrollments.
 
     Raises:
-        CourseNotFoundError: if course does not exist
-        NotInstructorOfCourseError: if user is not instructor of course and not admin
+        CourseNotFoundError: If course does not exist.
+        NotInstructorOfCourseError: If user is not instructor of course and not admin.
     """
-    if not await _course_exists(session, id):
+    if not await repository.exists(id):
         raise CourseNotFoundError()
 
-    is_admin = current_user.role == UserRole.admin
-    if not is_admin:
-        stmt = select(
-            exists().where(
-                CourseInstructor.course_id == id,
-                CourseInstructor.user_id == current_user.id,
-            )
-        )
-        result = await session.execute(stmt)
-        is_instructor_of_course = result.scalar_one()
-        if not is_instructor_of_course:
-            raise NotInstructorOfCourseError()
+    await _ensure_can_modify_course(repository, id, current_user)
 
-    await session.execute(delete(Course).where(Course.id == id))
-    await session.commit()
+    await repository.delete(id)
+    await repository.commit()
 
 
 def _resolve_instructor_ids(payload: CourseCreate, current_user_id: UUID) -> list[UUID]:
@@ -263,16 +188,11 @@ def _resolve_instructor_ids(payload: CourseCreate, current_user_id: UUID) -> lis
 
 
 async def _validate_instructors(
-    session: AsyncSession,
+    repository: CourseRepository,
     instructor_ids: list[UUID],
 ) -> list[User]:
     """Fetch users by IDs and ensure all exist and have instructor or admin role."""
-    stmt = select(User).where(
-        User.id.in_(instructor_ids),
-        or_(User.role == UserRole.instructor, User.role == UserRole.admin),
-    )
-    result = await session.execute(stmt)
-    fetched = list(result.scalars().all())
+    fetched = await repository.find_instructors(instructor_ids)
 
     user_by_id = {user.id: user for user in fetched}
     users = [user_by_id[instructor_id] for instructor_id in instructor_ids if instructor_id in user_by_id]
@@ -283,103 +203,60 @@ async def _validate_instructors(
     return users
 
 
-async def _course_exists(session: AsyncSession, id: int) -> bool:
-    """Check if course exists. Lighter than session.get(Course) — no ORM materialization."""
-    stmt = select(exists().where(Course.id == id))
-    result = await session.execute(stmt)
-    return result.scalar_one()
-
-
-async def enroll_course(id: int, current_user: User, session: AsyncSession) -> CourseEnrollment:
-    """
-    Enroll current user in a course.
+async def enroll_course(id: int, current_user: User, repository: CourseRepository) -> CourseEnrollment:
+    """Enroll current user in a course.
 
     Raises:
-        CourseNotFoundError: if course does not exist
-        AlreadyEnrolledError: if user is already enrolled
+        CourseNotFoundError: If course does not exist.
+        AlreadyEnrolledError: If user is already enrolled.
     """
-    if not await _course_exists(session, id):
+    if not await repository.exists(id):
         raise CourseNotFoundError()
 
-    enrollment = CourseEnrollment(course_id=id, user_id=current_user.id)
-    session.add(enrollment)
-    try:
-        await session.commit()
-        await session.refresh(enrollment)
-    except IntegrityError:
-        await session.rollback()
-        # Unique (course_id, user_id) — already enrolled; course existence already verified
-        raise AlreadyEnrolledError from None
+    enrollment = await repository.add_enrollment(id, current_user.id)
+    await repository.commit()
+    await repository.refresh(enrollment)
     return enrollment
 
 
-async def unenroll_course(id: int, current_user: User, session: AsyncSession) -> None:
-    """
-    Unenroll current user from a course.
+async def unenroll_course(id: int, current_user: User, repository: CourseRepository) -> None:
+    """Unenroll current user from a course.
 
     Raises:
-        CourseNotFoundError: if course does not exist
-        NotEnrolledError: if user is not enrolled
+        CourseNotFoundError: If course does not exist.
+        NotEnrolledError: If user is not enrolled.
     """
-    if not await _course_exists(session, id):
+    if not await repository.exists(id):
         raise CourseNotFoundError()
 
-    stmt = delete(CourseEnrollment).where(
-        CourseEnrollment.course_id == id,
-        CourseEnrollment.user_id == current_user.id,
-    )
-    result = await session.execute(stmt)
-    if result.rowcount == 0:
+    removed = await repository.remove_enrollment(id, current_user.id)
+    if not removed:
         raise NotEnrolledError()
-    await session.commit()
+    await repository.commit()
 
 
 async def rate_course(
     id: int,
     payload: CourseRate,
     current_user: User,
-    session: AsyncSession,
+    repository: CourseRepository,
 ) -> CourseRating:
-    """
-    Rate a course (upsert). One rating per user per course; updates if already rated.
+    """Rate a course (upsert). One rating per user per course; updates if already rated.
 
     Raises:
-        CourseNotFoundError: if course does not exist
+        CourseNotFoundError: If course does not exist.
     """
-    if not await _course_exists(session, id):
+    if not await repository.exists(id):
         raise CourseNotFoundError()
 
-    rating_value = Decimal(str(round(payload.rating, 1)))
-    stmt = (
-        insert(CourseRating)
-        .values(course_id=id, user_id=current_user.id, rating=rating_value)
-        .on_conflict_do_update(
-            constraint="uq_course_rating",
-            set_={"rating": rating_value},
-        )
-        .returning(CourseRating)
-    )
-    result = await session.execute(stmt)
-    rating = result.scalars().one()
-    await session.commit()
+    rating_value = Decimal(str(round(payload.rating, RATING_DECIMAL_PLACES)))
+    rating = await repository.upsert_rating(id, current_user.id, rating_value)
+    await repository.commit()
     return rating
 
 
-async def recompute_course_rating(course_id: int, session: AsyncSession | None = None) -> None:
-    """
-    Recompute and update course aggregate rating. When session is provided (e.g. in tests),
-    uses it; otherwise creates its own (for BackgroundTasks).
-    """
-    if session is not None:
-        avg_stmt = select(func.avg(CourseRating.rating)).where(CourseRating.course_id == course_id)
-        avg_result = await session.execute(avg_stmt)
-        avg_rating = avg_result.scalar_one_or_none()
-        await session.execute(update(Course).where(Course.id == course_id).values(rating=avg_rating))
-        await session.commit()
-        return
-    async with AsyncSessionLocal() as session:
-        avg_stmt = select(func.avg(CourseRating.rating)).where(CourseRating.course_id == course_id)
-        avg_result = await session.execute(avg_stmt)
-        avg_rating = avg_result.scalar_one_or_none()
-        await session.execute(update(Course).where(Course.id == course_id).values(rating=avg_rating))
-        await session.commit()
+async def recompute_course_rating(course_id: int, repository: CourseRepository) -> None:
+    """Recompute and update course aggregate rating."""
+    average = await repository.compute_average_rating(course_id)
+    await repository.update_average_rating(course_id, average)
+    await repository.commit()

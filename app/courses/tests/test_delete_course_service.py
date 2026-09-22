@@ -6,6 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.courses.errors import CourseNotFoundError, NotInstructorOfCourseError
 from app.courses.models import Course
+from app.courses.repository import CourseRepository
 from app.courses.schemas import CourseCreate
 from app.courses.service import create_course as create_course_service, delete_course
 
@@ -17,6 +18,7 @@ class TestDeleteCourseService:
     async def test_admin_deletes_any_course(
         self,
         db_session: AsyncSession,
+        course_repository: CourseRepository,
         test_admin,
         test_instructor,
     ):
@@ -27,11 +29,11 @@ class TestDeleteCourseService:
             instructor_ids=[],
             published=False,
         )
-        course = await create_course_service(payload, test_instructor, db_session)
+        course = await create_course_service(payload, test_instructor, course_repository)
         await db_session.commit()
         course_id = course.id
 
-        await delete_course(course_id, test_admin, db_session)
+        await delete_course(course_id, test_admin, course_repository)
 
         result = await db_session.execute(select(Course).where(Course.id == course_id))
         assert result.scalars().one_or_none() is None
@@ -40,6 +42,7 @@ class TestDeleteCourseService:
     async def test_instructor_deletes_own_course(
         self,
         db_session: AsyncSession,
+        course_repository: CourseRepository,
         test_instructor,
     ):
         """Instructor can delete a course they instruct."""
@@ -49,11 +52,11 @@ class TestDeleteCourseService:
             instructor_ids=[],
             published=False,
         )
-        course = await create_course_service(payload, test_instructor, db_session)
+        course = await create_course_service(payload, test_instructor, course_repository)
         await db_session.commit()
         course_id = course.id
 
-        await delete_course(course_id, test_instructor, db_session)
+        await delete_course(course_id, test_instructor, course_repository)
 
         result = await db_session.execute(select(Course).where(Course.id == course_id))
         assert result.scalars().one_or_none() is None
@@ -62,6 +65,7 @@ class TestDeleteCourseService:
     async def test_instructor_cannot_delete_other_course(
         self,
         db_session: AsyncSession,
+        course_repository: CourseRepository,
         test_admin,
         test_instructor,
     ):
@@ -72,12 +76,12 @@ class TestDeleteCourseService:
             instructor_ids=[],
             published=False,
         )
-        course = await create_course_service(payload, test_admin, db_session)
+        course = await create_course_service(payload, test_admin, course_repository)
         await db_session.commit()
         course_id = course.id
 
         with pytest.raises(NotInstructorOfCourseError):
-            await delete_course(course_id, test_instructor, db_session)
+            await delete_course(course_id, test_instructor, course_repository)
 
         result = await db_session.execute(select(Course).where(Course.id == course_id))
         assert result.scalars().one_or_none() is not None
@@ -85,9 +89,9 @@ class TestDeleteCourseService:
     @pytest.mark.asyncio
     async def test_delete_nonexistent_raises(
         self,
-        db_session: AsyncSession,
+        course_repository: CourseRepository,
         test_admin,
     ):
         """Deleting non-existent course raises CourseNotFoundError."""
         with pytest.raises(CourseNotFoundError):
-            await delete_course(99999, test_admin, db_session)
+            await delete_course(99999, test_admin, course_repository)

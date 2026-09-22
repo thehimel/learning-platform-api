@@ -1,5 +1,4 @@
 import asyncio
-import ssl
 import sys
 from pathlib import Path
 
@@ -11,8 +10,7 @@ from sqlalchemy.ext.asyncio import create_async_engine
 
 from alembic import context
 
-from app.database import Base
-from app.config import settings
+from app.infra.database import Base, DATABASE_URL, build_connect_args
 
 # Import all models here so their tables register with Base.metadata
 # and alembic autogenerate can detect schema changes.
@@ -22,11 +20,7 @@ from app.users import models as users_models  # noqa: F401
 config = context.config
 
 # Override the URL from settings so credentials are never hardcoded.
-config.set_main_option(
-    "sqlalchemy.url",
-    f"postgresql+asyncpg://{settings.postgres_user}:{settings.postgres_password}"
-    f"@{settings.postgres_host}:{settings.postgres_port}/{settings.postgres_db}",
-)
+config.set_main_option("sqlalchemy.url", DATABASE_URL)
 
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
@@ -56,12 +50,9 @@ def do_run_migrations(connection) -> None:
 
 async def run_async_migrations() -> None:
     """Create an async engine and run migrations via run_sync."""
-    connect_args = {}
-    if settings.postgres_ssl_require:
-        connect_args["ssl"] = ssl.create_default_context()
     connectable = create_async_engine(
         config.get_main_option("sqlalchemy.url"),
-        connect_args=connect_args,
+        connect_args=build_connect_args(),
     )
     async with connectable.connect() as connection:
         await connection.run_sync(do_run_migrations)

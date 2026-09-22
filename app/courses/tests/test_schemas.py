@@ -5,7 +5,8 @@ import uuid
 import pytest
 from pydantic import ValidationError
 
-from app.courses.schemas import CourseCreate, CourseRate, CourseUpdate, MAX_INSTRUCTORS_PER_COURSE
+from app.courses.constants import MAX_INSTRUCTORS_PER_COURSE
+from app.courses.schemas import CourseCreate, CourseRate, CourseUpdate
 
 
 class TestCourseRate:

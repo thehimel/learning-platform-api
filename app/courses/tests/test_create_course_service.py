@@ -7,6 +7,7 @@ from fastapi_users.password import PasswordHelper
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.courses.errors import InvalidInstructorIdsError
+from app.courses.repository import CourseRepository
 from app.courses.schemas import CourseCreate
 from app.courses.service import create_course
 from app.users.models import User, UserRole
@@ -35,7 +36,7 @@ class TestCreateCourseService:
     @pytest.mark.asyncio
     async def test_create_course_adds_creator_as_primary_instructor(
         self,
-        db_session: AsyncSession,
+        course_repository: CourseRepository,
         test_instructor: User,
     ):
         """Creator is primary instructor when add_me_as_instructor=True."""
@@ -46,7 +47,7 @@ class TestCreateCourseService:
             instructor_ids=[],
         )
 
-        result = await create_course(payload, test_instructor, db_session)
+        result = await create_course(payload, test_instructor, course_repository)
 
         assert result.title == "Service Test Course"
         assert result.description == "Testing the service"
@@ -58,7 +59,7 @@ class TestCreateCourseService:
     @pytest.mark.asyncio
     async def test_create_course_with_multiple_instructors(
         self,
-        db_session: AsyncSession,
+        course_repository: CourseRepository,
         test_instructor: User,
         second_instructor: User,
     ):
@@ -69,7 +70,7 @@ class TestCreateCourseService:
             instructor_ids=[str(second_instructor.id)],
         )
 
-        result = await create_course(payload, test_instructor, db_session)
+        result = await create_course(payload, test_instructor, course_repository)
 
         assert len(result.instructors) == 2
         assert result.instructors[0].user.id == test_instructor.id
@@ -80,7 +81,7 @@ class TestCreateCourseService:
     @pytest.mark.asyncio
     async def test_create_course_dedupes_instructor_ids(
         self,
-        db_session: AsyncSession,
+        course_repository: CourseRepository,
         test_instructor: User,
         second_instructor: User,
     ):
@@ -91,14 +92,14 @@ class TestCreateCourseService:
             instructor_ids=[str(second_instructor.id), str(second_instructor.id)],
         )
 
-        result = await create_course(payload, test_instructor, db_session)
+        result = await create_course(payload, test_instructor, course_repository)
 
         assert len(result.instructors) == 2
 
     @pytest.mark.asyncio
     async def test_create_course_invalid_instructor_raises(
         self,
-        db_session: AsyncSession,
+        course_repository: CourseRepository,
         test_instructor: User,
     ):
         """Invalid instructor ID raises InvalidInstructorIdsError."""
@@ -109,6 +110,6 @@ class TestCreateCourseService:
         )
 
         with pytest.raises(InvalidInstructorIdsError) as exc_info:
-            await create_course(payload, test_instructor, db_session)
+            await create_course(payload, test_instructor, course_repository)
 
         assert len(exc_info.value.missing_ids) == 1

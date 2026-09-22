@@ -1,8 +1,12 @@
-"""Exception classes and error codes for the courses domain."""
+"""Domain error classes for the courses module."""
 
 from enum import Enum
 from typing import Any
 from uuid import UUID
+
+from fastapi import status
+
+from app.infra.common.errors import DomainError
 
 
 class CourseErrorCode(str, Enum):
@@ -15,26 +19,16 @@ class CourseErrorCode(str, Enum):
     not_instructor_of_course = "not_instructor_of_course"
 
 
-class CourseError(Exception):
+class CourseError(DomainError):
     """Base for course domain exceptions. Subclasses define status_code, error_code, message."""
 
-    status_code: int = 500
     error_code: CourseErrorCode
-    message: str = ""
-
-    def get_http_message(self) -> str:
-        """Message for HTTP response. Uses str(self) when exception was raised with custom message."""
-        return str(self) if self.args else self.message
-
-    def get_extra_detail(self) -> dict[str, Any]:
-        """Extra fields for error_detail (e.g. missing_ids). Override in subclasses as needed."""
-        return {}
 
 
 class InvalidInstructorIdsError(CourseError):
     """Raised when one or more instructor IDs are invalid or not instructors."""
 
-    status_code = 400
+    status_code = status.HTTP_400_BAD_REQUEST
     error_code = CourseErrorCode.invalid_instructor_ids
     message = "Invalid or non-instructor user IDs."
 
@@ -49,7 +43,7 @@ class InvalidInstructorIdsError(CourseError):
 class TooManyInstructorsError(CourseError):
     """Raised when instructor_ids exceeds MAX_INSTRUCTORS_PER_COURSE."""
 
-    status_code = 400
+    status_code = status.HTTP_400_BAD_REQUEST
     error_code = CourseErrorCode.too_many_instructors
     message = "Too many instructors for this course."
 
@@ -57,7 +51,7 @@ class TooManyInstructorsError(CourseError):
 class CannotRemoveLastInstructorError(CourseError):
     """Raised when updating instructor_ids would leave the course with no instructors."""
 
-    status_code = 400
+    status_code = status.HTTP_400_BAD_REQUEST
     error_code = CourseErrorCode.cannot_remove_last_instructor
     message = "Cannot remove the last instructor. At least one instructor required."
 
@@ -65,7 +59,7 @@ class CannotRemoveLastInstructorError(CourseError):
 class AlreadyEnrolledError(CourseError):
     """Raised when user is already enrolled in the course."""
 
-    status_code = 409
+    status_code = status.HTTP_409_CONFLICT
     error_code = CourseErrorCode.already_enrolled
     message = "Already enrolled in this course."
 
@@ -73,7 +67,7 @@ class AlreadyEnrolledError(CourseError):
 class NotEnrolledError(CourseError):
     """Raised when user is not enrolled in the course."""
 
-    status_code = 409
+    status_code = status.HTTP_409_CONFLICT
     error_code = CourseErrorCode.not_enrolled
     message = "Not enrolled in this course."
 
@@ -81,7 +75,7 @@ class NotEnrolledError(CourseError):
 class CourseNotFoundError(CourseError):
     """Raised when a course does not exist."""
 
-    status_code = 404
+    status_code = status.HTTP_404_NOT_FOUND
     error_code = CourseErrorCode.course_not_found
     message = "Course not found."
 
@@ -89,6 +83,6 @@ class CourseNotFoundError(CourseError):
 class NotInstructorOfCourseError(CourseError):
     """Raised when user is not an instructor of the course and cannot modify it."""
 
-    status_code = 403
+    status_code = status.HTTP_403_FORBIDDEN
     error_code = CourseErrorCode.not_instructor_of_course
     message = "Not an instructor of this course."

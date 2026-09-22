@@ -25,7 +25,6 @@ class TestEnrollAPI:
         assert "user_id" in data
         assert "enrolled_at" in data
 
-        # Verify enrolled_count increased
         list_resp = await client.get(routes.courses_get)
         assert list_resp.status_code == 200
         course = next(c for c in list_resp.json()["items"] if c["id"] == course_id)
