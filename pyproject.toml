@@ -16,8 +16,10 @@ dependencies = [
     "pytest-xdist",
     "python-jose[cryptography]",
     "ruff",
+    "secure>=2.0.1",
     "slowapi",
     "sqlalchemy[asyncio]",
+    "structlog>=26.1.0",
 ]
 
 [tool.pytest.ini_options]

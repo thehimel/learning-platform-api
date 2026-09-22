@@ -15,11 +15,11 @@ from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from app.infra.common.constants import (
-    HANDLED_EXCEPTION_LOG_MESSAGE,
+    HANDLED_EXCEPTION_EVENT,
     HTTP_ERROR_CODE,
     INTERNAL_SERVER_ERROR_CODE,
     INTERNAL_SERVER_ERROR_MESSAGE,
-    UNHANDLED_EXCEPTION_LOG_MESSAGE,
+    UNHANDLED_EXCEPTION_EVENT,
     VALIDATION_ERROR_CODE,
     VALIDATION_ERROR_MESSAGE,
 )
@@ -66,9 +66,9 @@ def _resolve(exc: Exception) -> tuple[int, dict[str, Any]]:
 
 def _log_exception(exc: Exception, status_code: int, request: Request, detail: dict[str, Any]) -> None:
     if status_code >= status.HTTP_500_INTERNAL_SERVER_ERROR:
-        logger.error(UNHANDLED_EXCEPTION_LOG_MESSAGE, request.method, request.url.path, exc_info=exc)
+        logger.error(UNHANDLED_EXCEPTION_EVENT, method=request.method, path=request.url.path, exc_info=exc)
     else:
-        logger.warning(HANDLED_EXCEPTION_LOG_MESSAGE, request.method, request.url.path, detail["code"])
+        logger.warning(HANDLED_EXCEPTION_EVENT, method=request.method, path=request.url.path, code=detail["code"])
 
 
 async def _exception_handler(request: Request, exc: Exception) -> JSONResponse:

@@ -17,14 +17,14 @@ from app.users.constants import (
     PASSWORD_MIN_SPECIAL,
     PASSWORD_MIN_UPPERCASE,
     PASSWORD_POLICY_MESSAGES,
-    PASSWORD_RESET_LOG_MESSAGE,
-    PASSWORD_RESET_REQUESTED_LOG_MESSAGE,
-    PRIVILEGE_CHANGE_LOG_MESSAGE,
+    PASSWORD_RESET_EVENT,
+    PASSWORD_RESET_REQUESTED_EVENT,
+    PRIVILEGE_CHANGE_EVENT,
     ROLE_UPDATE_FIELD,
-    USER_DELETED_LOG_MESSAGE,
-    USER_DELETE_STARTED_LOG_MESSAGE,
-    USER_LOGGED_IN_LOG_MESSAGE,
-    USER_REGISTERED_LOG_MESSAGE,
+    USER_DELETED_EVENT,
+    USER_DELETE_STARTED_EVENT,
+    USER_LOGGED_IN_EVENT,
+    USER_REGISTERED_EVENT,
 )
 from app.users.dependencies import get_user_db
 from app.users.models import User
@@ -55,10 +55,10 @@ class UserManager(UUIDIDMixin, BaseUserManager[User, uuid.UUID]):
 
     async def on_after_update(self, user: User, update_dict: dict, request: Optional[Request] = None):
         if ROLE_UPDATE_FIELD in update_dict:
-            logger.warning(PRIVILEGE_CHANGE_LOG_MESSAGE, user.id, user.role)
+            logger.warning(PRIVILEGE_CHANGE_EVENT, user_id=user.id, role=user.role)
 
     async def on_after_register(self, user: User, request: Optional[Request] = None):
-        logger.info(USER_REGISTERED_LOG_MESSAGE, user.id, user.role)
+        logger.info(USER_REGISTERED_EVENT, user_id=user.id, role=user.role)
 
     async def on_after_login(
         self,
@@ -66,20 +66,20 @@ class UserManager(UUIDIDMixin, BaseUserManager[User, uuid.UUID]):
         request: Optional[Request] = None,
         response: Optional[Response] = None,
     ):
-        logger.info(USER_LOGGED_IN_LOG_MESSAGE, user.id)
+        logger.info(USER_LOGGED_IN_EVENT, user_id=user.id)
 
     async def on_after_forgot_password(self, user: User, token: str, request: Optional[Request] = None):
-        logger.info(PASSWORD_RESET_REQUESTED_LOG_MESSAGE, user.id)
+        logger.info(PASSWORD_RESET_REQUESTED_EVENT, user_id=user.id)
         # TODO: send password reset email.
 
     async def on_after_reset_password(self, user: User, request: Optional[Request] = None):
-        logger.info(PASSWORD_RESET_LOG_MESSAGE, user.id)
+        logger.info(PASSWORD_RESET_EVENT, user_id=user.id)
 
     async def on_before_delete(self, user: User, request: Optional[Request] = None):
-        logger.info(USER_DELETE_STARTED_LOG_MESSAGE, user.id)
+        logger.info(USER_DELETE_STARTED_EVENT, user_id=user.id)
 
     async def on_after_delete(self, user: User, request: Optional[Request] = None):
-        logger.info(USER_DELETED_LOG_MESSAGE, user.id)
+        logger.info(USER_DELETED_EVENT, user_id=user.id)
 
 
 async def get_user_manager(user_db: SQLAlchemyUserDatabase = Depends(get_user_db)):

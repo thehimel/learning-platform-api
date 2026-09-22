@@ -6,7 +6,7 @@ from fastapi import FastAPI, Request
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import Response
 
-from app.infra.common.constants import REQUEST_COMPLETED_LOG_MESSAGE
+from app.infra.common.constants import REQUEST_COMPLETED_EVENT, REQUEST_DURATION_DECIMAL_PLACES
 from app.infra.logging import get_logger
 
 logger = get_logger(__name__)
@@ -18,11 +18,11 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
         response = await call_next(request)
         elapsed_ms = (time.perf_counter() - started_at) * 1000
         logger.info(
-            REQUEST_COMPLETED_LOG_MESSAGE,
-            request.method,
-            request.url.path,
-            response.status_code,
-            elapsed_ms,
+            REQUEST_COMPLETED_EVENT,
+            method=request.method,
+            path=request.url.path,
+            status_code=response.status_code,
+            duration_ms=round(elapsed_ms, REQUEST_DURATION_DECIMAL_PLACES),
         )
         return response
 

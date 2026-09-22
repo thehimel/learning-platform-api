@@ -4,20 +4,27 @@ No Content-Security-Policy is set here: a strict default would break the Swagger
 which loads its assets from a CDN, so CSP is left for the app to opt into deliberately if needed.
 """
 
-from fastapi import FastAPI, Request
-from starlette.middleware.base import BaseHTTPMiddleware
-from starlette.responses import Response
+from fastapi import FastAPI
+from secure import (
+    CrossOriginOpenerPolicy,
+    ReferrerPolicy,
+    Secure,
+    StrictTransportSecurity,
+    XContentTypeOptions,
+    XFrameOptions,
+)
+from secure.middleware import SecureASGIMiddleware
 
-from app.infra.common.constants import SECURITY_HEADERS
+from app.infra.common.constants import HSTS_MAX_AGE_SECONDS
 
-
-class SecurityHeadersMiddleware(BaseHTTPMiddleware):
-    async def dispatch(self, request: Request, call_next) -> Response:
-        response = await call_next(request)
-        for header, value in SECURITY_HEADERS.items():
-            response.headers.setdefault(header, value)
-        return response
+_secure_headers = Secure(
+    xcto=XContentTypeOptions().nosniff(),
+    xfo=XFrameOptions().deny(),
+    referrer=ReferrerPolicy().strict_origin_when_cross_origin(),
+    hsts=StrictTransportSecurity().max_age(HSTS_MAX_AGE_SECONDS).include_subdomains(),
+    coop=CrossOriginOpenerPolicy().same_origin(),
+)
 
 
 def setup_security_headers(app: FastAPI) -> None:
-    app.add_middleware(SecurityHeadersMiddleware)
+    app.add_middleware(SecureASGIMiddleware, secure=_secure_headers)

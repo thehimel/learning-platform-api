@@ -647,8 +647,10 @@ dependencies = [
     { name = "pytest-xdist" },
     { name = "python-jose", extra = ["cryptography"] },
     { name = "ruff" },
+    { name = "secure" },
     { name = "slowapi" },
     { name = "sqlalchemy", extra = ["asyncio"] },
+    { name = "structlog" },
 ]
 
 [package.metadata]
@@ -666,8 +668,10 @@ requires-dist = [
     { name = "pytest-xdist" },
     { name = "python-jose", extras = ["cryptography"] },
     { name = "ruff" },
+    { name = "secure", specifier = ">=2.0.1" },
     { name = "slowapi" },
     { name = "sqlalchemy", extras = ["asyncio"] },
+    { name = "structlog", specifier = ">=26.1.0" },
 ]
 
 [[package]]
@@ -1184,6 +1188,15 @@ wheels = [
 ]
 
 [[package]]
+name = "secure"
+version = "2.0.1"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/ca/88/84b861346a6a23d75900b493de7458cf89605262e6e19876dc0b576b11ff/secure-2.0.1.tar.gz", hash = "sha256:bb492b9ca2ae66d04f4718675a18de1d1a29217aaded3d6cb5bd8b4ba2e2a645", size = 39787, upload-time = "2026-04-22T09:49:07.225Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/50/16/b5040aa7644a99f9bd0b08d393b49edaa8d48062ae4757ee107737b60030/secure-2.0.1-py3-none-any.whl", hash = "sha256:12794037e2c4d0b54697045b50285a37faf26ba026cb34a68cd55e96d472898b", size = 53983, upload-time = "2026-04-22T09:49:05.8Z" },
+]
+
+[[package]]
 name = "sentry-sdk"
 version = "2.54.0"
 source = { registry = "https://pypi.org/simple" }
@@ -1267,6 +1280,15 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/c4/68/79977123bb7be889ad680d79a40f339082c1978b5cfcf62c2d8d196873ac/starlette-0.52.1.tar.gz", hash = "sha256:834edd1b0a23167694292e94f597773bc3f89f362be6effee198165a35d62933", size = 2653702, upload-time = "2026-01-18T13:34:11.062Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/81/0d/13d1d239a25cbfb19e740db83143e95c772a1fe10202dda4b76792b114dd/starlette-0.52.1-py3-none-any.whl", hash = "sha256:0029d43eb3d273bc4f83a08720b4912ea4b071087a3b48db01b7c839f7954d74", size = 74272, upload-time = "2026-01-18T13:34:09.188Z" },
+]
+
+[[package]]
+name = "structlog"
+version = "26.1.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/5e/89/b4a0bcfdf4f71a3dea31379f095929613d7e4528a0996bca6aa964cd0dca/structlog-26.1.0.tar.gz", hash = "sha256:f63a716cbd1b1291cf7661de7794b455acfa4c43c5bcf1630e6ad5ddc1adb3b7", size = 1459881, upload-time = "2026-06-06T07:33:39.348Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/a9/18/489c97b834dfff9cf2fc2507cede4bcd4b11e67f84bc462acd1992496f86/structlog-26.1.0-py3-none-any.whl", hash = "sha256:e081a26d6c373e6d201eca24eede26d8ffab07f88f477822e679183428d3d91e", size = 73764, upload-time = "2026-06-06T07:33:38.046Z" },
 ]
 
 [[package]]
